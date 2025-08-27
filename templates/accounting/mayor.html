@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Mayor{% endblock %}
+{% block content %}
+<h1>Mayor de Cuentas</h1>
+<table>
+  <thead><tr><th>Cuenta</th><th>Rubro</th><th>Debe</th><th>Haber</th><th>Saldo</th></tr></thead>
+  <tbody>
+  {% for f in filas %}
+    <tr>
+      <td>{{ f.cuenta }}</td>
+      <td>{{ f.rubro }}</td>
+      <td>{{ '%.2f'|format(f.debe) }}</td>
+      <td>{{ '%.2f'|format(f.haber) }}</td>
+      <td>{{ '%.2f'|format(f.saldo) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

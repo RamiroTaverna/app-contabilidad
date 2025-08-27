@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Mi Empresa{% endblock %}
+{% block content %}
+<h1>Mi Empresa</h1>
+{% if rol == 'docente' %}
+  <p>Como docente puedes ver todas las empresas:</p>
+  <ul>
+    {% for e in empresas %}
+      <li>{{ e.nombre }}</li>
+    {% endfor %}
+  </ul>
+{% elif empresa %}
+  <p>Rol: {{ rol }}</p>
+  <p>Nombre: {{ empresa.nombre }}</p>
+{% else %}
+  <p>No estás afiliado ni eres dueño.</p>
+{% endif %}
+{% endblock %}

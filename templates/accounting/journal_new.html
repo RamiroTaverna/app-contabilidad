@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Nuevo Asiento{% endblock %}
+{% block content %}
+<h1>Nuevo Asiento</h1>
+<form method="post">
+  {% if id_empresa %}
+    <input type="hidden" name="id_empresa" value="{{ id_empresa }}">
+  {% endif %}
+  <label>Fecha</label>
+  <input type="date" name="fecha" value="{{ (cycler).next() }}" onfocus="this.showPicker && this.showPicker()">
+
+  <label>Leyenda</label>
+  <input name="leyenda" placeholder="Descripción del asiento">
+
+  <div id="renglones"></div>
+  <button type="button" onclick="addRow()">+ Agregar renglón</button>
+  <button type="submit">Guardar</button>
+</form>
+
+<script>
+let i = 0;
+function addRow(){
+  i++;
+  const container = document.getElementById('renglones');
+  const row = document.createElement('div');
+  row.className = 'card';
+  row.innerHTML = `
+    <select name="id_cuenta_${i}" required>
+      <option value="">-- Cuenta --</option>
+      {% for c in cuentas %}
+        <option value="{{ c.id_cuenta }}">{{ c.cuenta }} ({{ c.rubro }})</option>
+      {% endfor %}
+    </select>
+    <select name="tipo_${i}" required>
+      <option value="debe">Debe</option>
+      <option value="haber">Haber</option>
+    </select>
+    <input name="importe_${i}" type="number" step="0.01" placeholder="Importe" required>
+  `;
+  container.appendChild(row);
+}
+addRow(); addRow(); // 2 filas por defecto
+</script>
+{% endblock %}

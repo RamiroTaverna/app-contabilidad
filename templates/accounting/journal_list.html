@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Asientos{% endblock %}
+{% block content %}
+<h1>Asientos</h1>
+<p><a href="{{ url_for('accounting.journal_new') }}">Nuevo asiento</a></p>
+<table>
+  <thead>
+    <tr><th>Fecha</th><th>#</th><th>Leyenda</th><th>Movs</th></tr>
+  </thead>
+  <tbody>
+  {% for a in asientos %}
+    <tr>
+      <td>{{ a.fecha }}</td>
+      <td>{{ a.num_asiento }}</td>
+      <td>{{ a.leyenda or '' }}</td>
+      <td>{{ a.detalles|length }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,14 @@
+:root { --bg:#0b0b10; --fg:#eaeaea; --muted:#a0a0a0; --card:#141420; --btn:#2b2bff; }
+*{ box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font-family:system-ui,Segoe UI,Roboto,Ubuntu,sans-serif; }
+.nav { display:flex; gap:1rem; padding:1rem; background:#0f0f18; border-bottom:1px solid #222; }
+.nav a { color:var(--fg); text-decoration:none; opacity:.9; }
+.nav .right { margin-left:auto; opacity:.8; }
+.container { max-width:1000px; margin:2rem auto; padding:0 1rem; }
+.grid { list-style:none; padding:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; }
+.card { background:var(--card); border:1px solid #222; padding:1rem; border-radius:16px; }
+button { background:var(--btn); color:white; border:none; padding:.6rem 1rem; border-radius:10px; cursor:pointer; }
+button[disabled]{ opacity:.4; cursor:not-allowed; }
+input { width:100%; padding:.6rem .8rem; border-radius:10px; border:1px solid #333; background:#0f0f18; color:var(--fg); }
+h1,h2,h3{ margin:.2rem 0 1rem; }
+p{ color:var(--muted); margin:.2rem 0; }
