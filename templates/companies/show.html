@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ empresa.nombre }}{% endblock %}
+{% block content %}
+<h1>{{ empresa.nombre }}</h1>
+
+<section class="card">
+  <h3>Integrantes</h3>
+  <ul>
+    {% if dueno %}
+      <li><strong>{{ dueno.nombre }}</strong> — dueño</li>
+    {% else %}
+      <li><em>Sin dueño asignado</em></li>
+    {% endif %}
+
+    {% for u in empleados %}
+      <li>{{ u.nombre }} — empleado</li>
+    {% else %}
+      <li><em>Sin empleados</em></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

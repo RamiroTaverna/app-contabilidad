@@ -1,12 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Inicio{% endblock %}
-{% block content %}
-  <h1>Inicio</h1>
 
+{% block content %}
+<div class="container">
   {% if user %}
-    <p>Hola, <strong>{{ user.nombre }}</strong> ({{ user.rol.value }})</p>
-    <p>Podes usar el menú superior para navegar.</p>
+    <h1>Hola, {{ user.nombre }}</h1>
+    <p>Estás logueado como <strong>{{ user.rol.value }}</strong>.</p>
+
+    <div class="actions" style="margin-top:1.5rem;">
+      <a class="btn" href="{{ url_for('companies.list_companies') }}">Ver Empresas</a>
+      {% if user.rol.value == "docente" %}
+        <a class="btn ghost" href="{{ url_for('accounting.journal') }}">Panel Contable</a>
+      {% endif %}
+      <a class="btn ghost" href="{{ url_for('auth.logout') }}">Cerrar Sesión</a>
+    </div>
+
   {% else %}
-    <p>No has iniciado sesión. Usa <em>Login Google</em> en la barra superior.</p>
+    <div class="card" style="max-width:480px; margin:4rem auto; text-align:center;">
+      <h2>Bienvenido</h2>
+      <p>Accede con tu cuenta de Google para comenzar.</p>
+      <a class="btn" href="{{ url_for('auth.login') }}">Iniciar sesión con Google</a>
+    </div>
   {% endif %}
+</div>
 {% endblock %}

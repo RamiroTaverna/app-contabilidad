@@ -1,7 +1,52 @@
-<!-- templates/companies/list.html -->
 {% extends "base.html" %}
 {% block title %}Empresas{% endblock %}
 {% block content %}
-  <h1>Empresas</h1>
-  <p>Si ves esta página, el blueprint <code>companies</code> está registrado y el endpoint <code>companies.list_companies</code> existe.</p>
+<h1>Empresas</h1>
+
+<ul class="grid">
+  {% for c in cards %}
+  <li class="card">
+    <div class="card-head">
+      <h3 class="card-title">{{ c.nombre }}</h3>
+      <span class="pill">{{ c.total }}/6</span>
+    </div>
+
+    <div class="slots">
+      {# Renderiza hasta 6 “slots” (dueño + empleados) #}
+      {% for m in c.integrantes %}
+        <div class="slot filled" title="{{ m.nombre }} ({{ m.rol }})">
+          <div class="avatar">{{ m.nombre[:1] | upper }}</div>
+        </div>
+      {% endfor %}
+      {% for i in range(6 - c.integrantes|length) %}
+        <div class="slot empty"></div>
+      {% endfor %}
+    </div>
+
+    <div class="actions">
+      {% if c.puede_unirse %}
+        <form method="post" action="{{ url_for('companies.join_company', id_empresa=c.id) }}">
+          <button class="btn">Entrar</button>
+        </form>
+      {% elif c.lleno %}
+        <button class="btn" disabled>Lleno</button>
+      {% else %}
+        <button class="btn" disabled>Cerrado</button>
+      {% endif %}
+
+      {% if c.puede_ver_mas %}
+        <a class="btn ghost" href="{{ url_for('companies.show_company', id_empresa=c.id) }}">Ver más</a>
+      {% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+
+{% if user and user.rol.value in ['empleado','dueno'] %}
+  <h2 style="margin-top:2rem">Crear empresa</h2>
+  <form class="create-form" method="post" action="{{ url_for('companies.create_company') }}">
+    <input name="nombre" placeholder="Nombre de la empresa" required>
+    <button class="btn">Crear</button>
+  </form>
+{% endif %}
 {% endblock %}

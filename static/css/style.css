@@ -12,3 +12,24 @@ button[disabled]{ opacity:.4; cursor:not-allowed; }
 input { width:100%; padding:.6rem .8rem; border-radius:10px; border:1px solid #333; background:#0f0f18; color:var(--fg); }
 h1,h2,h3{ margin:.2rem 0 1rem; }
 p{ color:var(--muted); margin:.2rem 0; }
+
+/* tarjetas tipo lobby/sala */
+.grid{ list-style:none; padding:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:1rem; }
+.card{ background:var(--card); border:1px solid #222; padding:1rem; border-radius:16px; }
+.card-head{ display:flex; align-items:center; gap:.5rem; }
+.card-title{ margin:0; font-size:1.1rem; }
+.pill{ margin-left:auto; background:#1d2b4d; color:#b8c7ff; border-radius:999px; padding:.2rem .55rem; font-size:.85rem; }
+
+.slots{ display:grid; grid-template-columns:repeat(6, 36px); gap:.4rem; margin:.8rem 0 1.1rem; }
+.slot{ width:36px; height:36px; border-radius:12px; display:grid; place-items:center; border:1px dashed #333; }
+.slot.empty{ background:#0f0f18; opacity:.6; }
+.slot.filled{ background:#182238; border-color:#263455; }
+.avatar{ width:26px; height:26px; border-radius:50%; background:#2b2bff; display:grid; place-items:center; color:white; font-weight:700; }
+
+.actions{ display:flex; gap:.6rem; }
+.btn{ background:var(--btn); color:white; border:none; padding:.55rem .9rem; border-radius:10px; cursor:pointer; }
+.btn[disabled]{ opacity:.6; cursor:not-allowed; }
+.btn.ghost{ background:transparent; border:1px solid #2f2f4f; color:#c7d3ff; }
+
+.create-form{ display:flex; gap:.6rem; max-width:520px; }
+.create-form input{ flex:1; }

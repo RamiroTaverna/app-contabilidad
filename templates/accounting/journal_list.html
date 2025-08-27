@@ -1,21 +1,99 @@
 {% extends "base.html" %}
 {% block title %}Asientos{% endblock %}
 {% block content %}
-<h1>Asientos</h1>
-<p><a href="{{ url_for('accounting.journal_new') }}">Nuevo asiento</a></p>
-<table>
-  <thead>
-    <tr><th>Fecha</th><th>#</th><th>Leyenda</th><th>Movs</th></tr>
-  </thead>
-  <tbody>
-  {% for a in asientos %}
-    <tr>
-      <td>{{ a.fecha }}</td>
-      <td>{{ a.num_asiento }}</td>
-      <td>{{ a.leyenda or '' }}</td>
-      <td>{{ a.detalles|length }}</td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+  <h1>Asientos</h1>
+
+  {% if empresas is not none and user.rol.value == 'docente' %}
+    <form method="get" action="{{ url_for('accounting.journal_list') }}" class="card" style="margin-bottom:1rem">
+      <label>Empresa:
+        <select name="empresa">
+          <option value="">-- Elegir --</option>
+          {% for e in empresas %}
+            <option value="{{ e.id_empresa }}" {% if empresa_sel == e.id_empresa %}selected{% endif %}>{{ e.nombre }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="btn" style="margin-left:.5rem">Ver</button>
+    </form>
+  {% endif %}
+
+  {% if user.rol.value != 'docente' or empresa_sel %}
+  <section class="card" style="margin-bottom:1rem">
+    <h3>Nuevo asiento</h3>
+    <form method="post" action="{{ url_for('accounting.journal_create') }}">
+      {% if user.rol.value == 'docente' %}
+        <input type="hidden" name="empresa" value="{{ empresa_sel }}">
+      {% endif %}
+      <div style="display:flex; gap:.6rem; flex-wrap:wrap">
+        <label>Fecha <input type="date" name="fecha" value="{{ caller().date if false else '' }}"></label>
+        <label>Documento <input name="doc" placeholder="Factura, Recibo, etc."></label>
+      </div>
+      <label style="display:block; margin-top:.6rem">Leyenda
+        <input name="leyenda" placeholder="Descripción del asiento">
+      </label>
+
+      <div style="margin-top:1rem">
+        <table style="width:100%; border-collapse:collapse">
+          <thead>
+            <tr><th style="text-align:left">Cuenta</th><th style="text-align:left">Tipo</th><th style="text-align:right">Importe</th></tr>
+          </thead>
+          <tbody id="rows">
+            {% for i in range(2) %}
+            <tr>
+              <td><input name="cuenta[]" placeholder="Caja, Banco, Ventas, ..."></td>
+              <td>
+                <select name="tipo[]">
+                  <option value="debe">Debe</option>
+                  <option value="haber">Haber</option>
+                </select>
+              </td>
+              <td><input name="importe[]" type="number" step="0.01" min="0"></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <button type="button" class="btn" onclick="addRow()" style="margin-top:.5rem">+ renglón</button>
+      </div>
+
+      <button class="btn" style="margin-top:1rem">Guardar</button>
+    </form>
+  </section>
+  {% endif %}
+
+  <section class="card">
+    <h3>Asientos cargados</h3>
+    {% if asientos %}
+      <ul>
+        {% for a in asientos %}
+          <li>
+            <strong>#{{ a.num_asiento }}</strong> — {{ a.fecha }} — {{ a.leyenda or 'sin leyenda' }}
+            <ul>
+              {% for d in a.detalles %}
+                <li>{{ d.cuenta }} — {{ d.tipo }}: {{ "%.2f"|format(d.importe) }}</li>
+              {% endfor %}
+            </ul>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p><em>No hay asientos todavía.</em></p>
+    {% endif %}
+  </section>
+
+  <script>
+    function addRow(){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input name="cuenta[]" placeholder="Cuenta"></td>
+        <td>
+          <select name="tipo[]">
+            <option value="debe">Debe</option>
+            <option value="haber">Haber</option>
+          </select>
+        </td>
+        <td><input name="importe[]" type="number" step="0.01" min="0"></td>
+      `;
+      document.getElementById('rows').appendChild(tr);
+    }
+  </script>
 {% endblock %}

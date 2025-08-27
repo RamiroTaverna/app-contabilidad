@@ -1,126 +1,149 @@
 # accounting.py
 from flask import Blueprint, render_template, request, redirect, url_for, g, abort, flash
-from datetime import date
 from sqlalchemy import func
-from models import db, Asiento, DetalleAsiento, PlanCuenta, Empresa, Usuario, EmpresaEmpleado, Rol
-from utils.scope import require_company_scope, get_user_company_id_or_none
+from sqlalchemy.exc import SQLAlchemyError
+from models import db, Rol, Empresa, EmpresaEmpleado, Asiento, DetalleAsiento
+from datetime import date
+from decimal import Decimal
 
 bp = Blueprint("accounting", __name__, url_prefix="/accounting")
 
-def next_num_asiento(id_empresa:int) -> int:
-    last = db.session.query(func.max(Asiento.num_asiento)).filter_by(id_empresa=id_empresa).scalar()
-    return (last or 0) + 1
+# --- helpers auth ---
 
-@bp.route("/journal")
+def login_required(f):
+    from functools import wraps
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        if not getattr(g, "user", None):
+            return redirect(url_for("auth.login", next=request.path))
+        return f(*args, **kwargs)
+    return wrap
+
+def _empresa_del_usuario():
+    """ Devuelve id_empresa según rol:
+        - dueño: su empresa
+        - empleado: empresa afiliada
+        - docente: None (debe filtrar por ?empresa=ID)
+    """
+    if g.user.rol == Rol.dueno:
+        e = Empresa.query.filter_by(id_gerente=g.user.id).first()
+        return e.id_empresa if e else None
+    if g.user.rol == Rol.empleado:
+        rel = EmpresaEmpleado.query.filter_by(id_usuario=g.user.id).first()
+        return rel.id_empresa if rel else None
+    return None  # docente
+
+# --- routes ---
+
+@bp.route("/journal", methods=["GET"], endpoint="journal_list")
+@login_required
 def journal_list():
-    id_emp = get_user_company_id_or_none()
-    q = Asiento.query
-    if g.user and g.user.rol == Rol.docente:
-        # docente ve todos (o podrías filtrar por ?empresa=)
-        pass
+    if g.user.rol == Rol.docente:
+        # docente puede elegir empresa por querystring
+        empresa_id = request.args.get("empresa", type=int)
+        empresas = Empresa.query.order_by(Empresa.nombre).all()
+        asientos = []
+        if empresa_id:
+            asientos = Asiento.query.filter_by(id_empresa=empresa_id).order_by(Asiento.fecha.desc(), Asiento.num_asiento.desc()).all()
+        return render_template("accounting/journal_list.html", asientos=asientos, empresas=empresas, empresa_sel=empresa_id)
+
+    empresa_id = _empresa_del_usuario()
+    if not empresa_id:
+        flash("No tienes empresa asociada.", "error")
+        return render_template("accounting/journal_list.html", asientos=[])
+
+    asientos = Asiento.query.filter_by(id_empresa=empresa_id).order_by(Asiento.fecha.desc(), Asiento.num_asiento.desc()).all()
+    return render_template("accounting/journal_list.html", asientos=asientos, empresas=None, empresa_sel=empresa_id)
+
+@bp.route("/journal/new", methods=["POST"], endpoint="journal_create")
+@login_required
+def journal_create():
+    # empresa destino según rol
+    if g.user.rol == Rol.docente:
+        empresa_id = request.form.get("empresa", type=int)
+        if not empresa_id:
+            flash("Debes elegir una empresa.", "error")
+            return redirect(url_for("accounting.journal_list"))
     else:
-        id_emp = require_company_scope()
-        q = q.filter_by(id_empresa=id_emp)
+        empresa_id = _empresa_del_usuario()
+        if not empresa_id:
+            flash("No tienes empresa asociada.", "error")
+            return redirect(url_for("accounting.journal_list"))
 
-    asientos = q.order_by(Asiento.fecha.desc(), Asiento.num_asiento.desc()).limit(100).all()
-    return render_template("accounting/journal_list.html", asientos=asientos)
+    # Datos del encabezado
+    fecha = request.form.get("fecha") or date.today().isoformat()
+    doc = (request.form.get("doc") or "").strip()
+    leyenda = (request.form.get("leyenda") or "").strip()
 
-@bp.route("/journal/new", methods=["GET","POST"])
-def journal_new():
-    # dueños y empleados de una empresa; docente opcionalmente elegir empresa por form
-    id_emp = get_user_company_id_or_none()
-    if g.user.rol != Rol.docente and id_emp is None:
-        abort(403)
+    # Renglones
+    cuentas = request.form.getlist("cuenta[]")
+    tipos = request.form.getlist("tipo[]")
+    importes_raw = request.form.getlist("importe[]")
 
-    if request.method == "POST":
-        # si docente, permitir seleccionar empresa por input hidden/select
-        id_empresa = request.form.get("id_empresa") or id_emp
-        if not id_empresa:
-            abort(400, "Sin empresa.")
-        id_empresa = int(id_empresa)
+    # Validación mínima
+    if not cuentas or not tipos or not importes_raw or len(cuentas) != len(tipos) or len(cuentas) != len(importes_raw):
+        flash("Renglones inválidos.", "error")
+        return redirect(url_for("accounting.journal_list", empresa=empresa_id if g.user.rol == Rol.docente else None))
 
-        fecha = request.form.get("fecha") or date.today().isoformat()
-        leyenda = request.form.get("leyenda","").strip()
-        filas = []  # [(id_cuenta, tipo, importe), ...]
+    # Sumas
+    suma_debe = Decimal("0")
+    suma_haber = Decimal("0")
+    detalles = []
+    for c, t, im in zip(cuentas, tipos, importes_raw):
+        c = (c or "").strip()
+        if not c:
+            continue
+        try:
+            monto = Decimal(im)
+        except Exception:
+            flash("Importes inválidos.", "error")
+            return redirect(url_for("accounting.journal_list", empresa=empresa_id if g.user.rol == Rol.docente else None))
+        if monto <= 0:
+            flash("Importes deben ser positivos.", "error")
+            return redirect(url_for("accounting.journal_list", empresa=empresa_id if g.user.rol == Rol.docente else None))
 
-        # Capturar filas dinámicas: inputs tipo id_cuenta_1, tipo_1, importe_1, etc.
-        i = 1
-        total_debe = 0
-        total_haber = 0
-        while True:
-            cid = request.form.get(f"id_cuenta_{i}")
-            tip = request.form.get(f"tipo_{i}")
-            imp = request.form.get(f"importe_{i}")
-            if not cid and not tip and not imp:
-                break
-            try:
-                cid = int(cid)
-                imp = float(imp)
-            except Exception:
-                abort(400, f"Fila {i} inválida")
-            if tip not in ("debe","haber"):
-                abort(400, f"Tipo inválido en fila {i}")
-            if imp < 0:
-                abort(400, f"Importe negativo en fila {i}")
-            filas.append((cid, tip, imp))
-            if tip == "debe": total_debe += imp
-            else: total_haber += imp
-            i += 1
+        if t == "debe":
+            suma_debe += monto
+        elif t == "haber":
+            suma_haber += monto
+        else:
+            flash("Tipo de renglón inválido.", "error")
+            return redirect(url_for("accounting.journal_list", empresa=empresa_id if g.user.rol == Rol.docente else None))
 
-        if len(filas) < 2:
-            abort(400, "Necesitas al menos 2 renglones.")
-        if round(total_debe,2) != round(total_haber,2):
-            abort(400, "Partida doble inválida: debe != haber")
+        detalles.append((c, t, monto))
 
-        # crear asiento + detalles en una transacción
-        num = next_num_asiento(id_empresa)
+    if suma_debe == 0 or suma_haber == 0 or suma_debe != suma_haber:
+        flash("La partida debe estar balanceada (Debe = Haber > 0).", "error")
+        return redirect(url_for("accounting.journal_list", empresa=empresa_id if g.user.rol == Rol.docente else None))
+
+    # Próximo número correlativo para esa empresa
+    last_num = db.session.query(func.max(Asiento.num_asiento)).filter_by(id_empresa=empresa_id).scalar() or 0
+    nuevo_num = last_num + 1
+
+    try:
         a = Asiento(
-            id_empresa=id_empresa,
-            fecha=fecha,
-            num_asiento=num,
+            id_empresa=empresa_id,
+            fecha=date.fromisoformat(fecha),
+            num_asiento=nuevo_num,
+            doc_respaldatorio=doc,
+            id_usuario=g.user.id,
             leyenda=leyenda,
-            id_usuario=g.user.id if g.user else None
         )
         db.session.add(a)
-        db.session.flush()  # para obtener a.id_asiento
+        db.session.flush()  # para id_asiento
 
-        for cid, tip, imp in filas:
-            d = DetalleAsiento(
+        for c, t, monto in detalles:
+            db.session.add(DetalleAsiento(
                 id_asiento=a.id_asiento,
-                id_cuenta=cid,
-                tipo=tip,
-                importe=imp
-            )
-            db.session.add(d)
+                cuenta=c,
+                tipo=t,
+                importe=monto
+            ))
+
         db.session.commit()
-        return redirect(url_for("accounting.journal_list"))
+        flash(f"Asiento {nuevo_num} creado.", "success")
+    except SQLAlchemyError:
+        db.session.rollback()
+        flash("Error al guardar el asiento.", "error")
 
-    # GET: renderizar formulario
-    # Cargar plan de cuentas de la empresa actual (o todas si docente)
-    if g.user.rol == Rol.docente and not id_emp:
-        # docente: opcionalmente filtrar por empresa en la UI
-        cuentas = PlanCuenta.query.order_by(PlanCuenta.id_empresa, PlanCuenta.cuenta).limit(500).all()
-    else:
-        cuentas = PlanCuenta.query.filter_by(id_empresa=id_emp).order_by(PlanCuenta.cuenta).all()
-
-    return render_template("accounting/journal_new.html", cuentas=cuentas, id_empresa=id_emp)
-
-@bp.route("/mayor")
-def mayor_view():
-    id_emp = get_user_company_id_or_none()
-    if g.user and g.user.rol != Rol.docente:
-        id_emp = require_company_scope()
-
-    # Cuentas de esta empresa
-    cuentas = PlanCuenta.query.filter_by(id_empresa=id_emp).order_by(PlanCuenta.cuenta).all() if id_emp else []
-    data = []
-    for c in cuentas:
-        debe = db.session.query(func.coalesce(func.sum(DetalleAsiento.importe),0)).\
-            join(Asiento, DetalleAsiento.id_asiento==Asiento.id_asiento).\
-            filter(Asiento.id_empresa==id_emp, DetalleAsiento.id_cuenta==c.id_cuenta, DetalleAsiento.tipo=="debe").scalar()
-        haber = db.session.query(func.coalesce(func.sum(DetalleAsiento.importe),0)).\
-            join(Asiento, DetalleAsiento.id_asiento==Asiento.id_asiento).\
-            filter(Asiento.id_empresa==id_emp, DetalleAsiento.id_cuenta==c.id_cuenta, DetalleAsiento.tipo=="haber").scalar()
-        saldo = float(debe) - float(haber)
-        data.append(dict(cuenta=c.cuenta, rubro=c.rubro, debe=float(debe), haber=float(haber), saldo=saldo))
-    return render_template("accounting/mayor.html", filas=data)
+    return redirect(url_for("accounting.journal_list", empresa=empresa_id if g.user.rol == Rol.docente else None))

@@ -1,42 +1,93 @@
+<!-- templates/base.html -->
 <!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8"/>
-  <title>{% block title %}Sistema{% endblock %}</title>
+  <title>{% block title %}Sistema Contable{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <style>
-    /* pequeñas mejoras visuales para la nav */
-    .nav { display:flex; align-items:center; gap:.8rem; padding:1rem; background:#0f0f18; border-bottom:1px solid #222; }
-    .nav a { color:#eaeaea; text-decoration:none; opacity:.9; }
-    .nav a:hover { opacity:1; }
-    .nav .spacer { flex:1 1 auto; }
-    .badge { font-size:.85rem; opacity:.8; }
-  </style>
 </head>
 <body>
-  <header class="nav">
+  <!-- NAVBAR -->
+  <nav class="nav">
     <a href="{{ url_for('home') }}">Inicio</a>
 
-    {% if has_companies %}
+    {% if 'companies' in current_app.blueprints %}
       <a href="{{ url_for('companies.list_companies') }}">Empresas</a>
     {% endif %}
-    {% if has_accounting %}
-      <a href="{{ url_for('accounting.journal_list') }}">Asientos</a>
+
+    {% if 'accounting' in current_app.blueprints and user %}
+      <a href="{{ url_for('accounting.journal_list') }}">Contabilidad</a>
     {% endif %}
 
-    <div class="spacer"></div>
+    <div class="right">
+      {% if user %}
+        <span style="margin-right:.8rem; opacity:.9;">👤 {{ user.nombre }} ({{ user.rol.value }})</span>
+        <a href="{{ url_for('auth.logout') }}">Salir</a>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}">Login Google</a>
+      {% endif %}
+    </div>
+  </nav>
 
-    {% if user %}
-      <span class="badge">Hola, {{ user.nombre }} ({{ user.rol.value }})</span>
-      <a href="{{ url_for('auth.logout') }}">Salir</a>
-    {% else %}
-      <a href="{{ url_for('auth.login') }}">Login Google</a>
-    {% endif %}
-  </header>
-
+  <!-- CONTENT -->
   <main class="container">
     {% block content %}{% endblock %}
   </main>
+
+  <!-- TOASTS (flash messages) -->
+  <div id="toasts"></div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // Recoge mensajes flash con categorías (success, error, info, warning)
+      const messages = {{ get_flashed_messages(with_categories=true) | tojson }};
+      const container = document.getElementById("toasts");
+
+      messages.forEach(([category, msg]) => {
+        const toast = document.createElement("div");
+        toast.className = `toast ${category}`;
+        toast.textContent = msg;
+        container.appendChild(toast);
+
+        // auto-ocultar con animación
+        setTimeout(() => {
+          toast.classList.add("hide");
+          setTimeout(() => toast.remove(), 500);
+        }, 4000);
+      });
+    });
+  </script>
+
+  <style>
+    /* Toasts respetando tu paleta */
+    #toasts{
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+      z-index: 1000;
+    }
+    .toast{
+      min-width: 240px;
+      max-width: 440px;
+      padding: .75rem 1rem;
+      border-radius: 10px;
+      background: var(--card);
+      color: var(--fg);
+      border: 1px solid #333;
+      box-shadow: 0 6px 20px rgba(0,0,0,.35);
+      opacity: .98;
+      transition: transform .3s ease, opacity .3s ease;
+      will-change: transform, opacity;
+    }
+    .toast.success { border-left: 4px solid #2ecc71; }
+    .toast.error   { border-left: 4px solid #e74c3c; }
+    .toast.info    { border-left: 4px solid #3498db; }
+    .toast.warning { border-left: 4px solid #f1c40f; }
+    .toast.hide { opacity: 0; transform: translateX(20%); }
+  </style>
 </body>
 </html>
