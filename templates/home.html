@@ -1,21 +1,12 @@
-<!-- templates/home.html -->
 {% extends "base.html" %}
 {% block title %}Inicio{% endblock %}
 {% block content %}
   <h1>Inicio</h1>
 
   {% if user %}
-    <p>Hola, {{ user.nombre }} ({{ user.rol.value }})</p>
-    <p><a href="{{ url_for('auth.logout') }}">Cerrar sesión</a></p>
+    <p>Hola, <strong>{{ user.nombre }}</strong> ({{ user.rol.value }})</p>
+    <p>Podes usar el menú superior para navegar.</p>
   {% else %}
-    <p>No has iniciado sesión.</p>
-    <p><a href="{{ url_for('auth.login') }}">Entrar con Google</a></p>
-  {% endif %}
-
-  {% if has_companies %}
-    <p><a href="{{ url_for('companies.list_companies') }}">Empresas</a></p>
-  {% endif %}
-  {% if has_accounting %}
-    <p><a href="{{ url_for('accounting.journal_list') }}">Asientos</a></p>
+    <p>No has iniciado sesión. Usa <em>Login Google</em> en la barra superior.</p>
   {% endif %}
 {% endblock %}

@@ -31,15 +31,21 @@ def create_app():
         if uid:
             g.user = Usuario.query.get(uid)
 
-    # ✅ Registrar el context_processor DESPUÉS de crear la app
+    # user y current_app disponibles en todos los templates
     @app.context_processor
-    def inject_current_app():
-        # opcional: podrías devolver flags en vez de exponer current_app entero
-        return dict(current_app=current_app)
+    def inject_globals():
+        return dict(
+            user=getattr(g, "user", None),
+            current_app=current_app,
+        )
 
     @app.route("/")
     def home():
-        return render_template("home.html", user=g.user)
+        return render_template(
+            "home.html",
+            has_companies=('companies' in app.blueprints),
+            has_accounting=('accounting' in app.blueprints),
+        )
 
     app.register_blueprint(auth_bp)
     if companies_bp:
