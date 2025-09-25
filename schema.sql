@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS analisis_indices (
     ON UPDATE CASCADE ON DELETE CASCADE
 );
 
---SEMILLAS (IMPORTANTES)
+-- SEMILLAS (IMPORTANTES)
 USE sistema_contable;
 
 INSERT INTO plan_cuentas_plantilla (cod_rubro, rubro, cod_subrubro, subrubro, cuenta) VALUES

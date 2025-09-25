@@ -1,0 +1,9 @@
+EMPRESA:
+    -Un empleado o dueño puede abandonar la empresa. (obligatoriamente el dueño debe asignar un dueño nuevo antes de abandonar)
+    -El dueño puede modificar el nombre de la empresa.
+    
+    -semillas de cuentas para cargar en detalles de asientos, solo podran cargarla dueños de empresas y que sean leidas globalmente por todas las empresas
+
+    -listado de asientos(vista global para todos los usuarios de la empresa) -> detalle asiento(libro diario)
+
+    -al guardar un asiento contable, solo el dueño puede modificar o eliminarlos.
