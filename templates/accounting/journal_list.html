@@ -40,7 +40,14 @@
           <tbody id="rows">
             {% for i in range(2) %}
             <tr>
-              <td><input name="cuenta[]" placeholder="Caja, Banco, Ventas, ..."></td>
+              <td>
+                <select name="cuenta_id[]">
+                  <option value="">-- Cuenta --</option>
+                  {% for c in cuentas or [] %}
+                    <option value="{{ c.id_cuenta }}">{{ c.cuenta }}</option>
+                  {% endfor %}
+                </select>
+              </td>
               <td>
                 <select name="tipo[]">
                   <option value="debe">Debe</option>
@@ -69,7 +76,7 @@
             <strong>#{{ a.num_asiento }}</strong> — {{ a.fecha }} — {{ a.leyenda or 'sin leyenda' }}
             <ul>
               {% for d in a.detalles %}
-                <li>{{ d.cuenta }} — {{ d.tipo }}: {{ "%.2f"|format(d.importe) }}</li>
+                <li>{{ d.cuenta_ref.cuenta if d.cuenta_ref else 'Cuenta' }} — {{ d.tipo }}: {{ "%.2f"|format(d.importe) }}</li>
               {% endfor %}
             </ul>
           </li>
@@ -84,7 +91,12 @@
     function addRow(){
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><input name="cuenta[]" placeholder="Cuenta"></td>
+        <td>
+          <select name="cuenta_id[]">
+            <option value="">-- Cuenta --</option>
+            ${(window.cuentasOptions || '')}
+          </select>
+        </td>
         <td>
           <select name="tipo[]">
             <option value="debe">Debe</option>
@@ -95,5 +107,11 @@
       `;
       document.getElementById('rows').appendChild(tr);
     }
+    // Genera opciones reutilizables en JS
+    window.cuentasOptions = `
+      {% for c in cuentas or [] %}
+        <option value="{{ c.id_cuenta }}">{{ c.cuenta }}</option>
+      {% endfor %}
+    `;
   </script>
 {% endblock %}

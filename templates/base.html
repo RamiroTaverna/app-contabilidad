@@ -20,12 +20,22 @@
       <a href="{{ url_for('accounting.journal_list') }}">Contabilidad</a>
     {% endif %}
 
+    {% if 'reports' in current_app.blueprints and user %}
+      <a href="{{ url_for('reports.index') }}">Reportes</a>
+    {% endif %}
+
+    {% if user and (user.rol.name == 'admin' or user.rol.value == 'admin') and 'admin' in current_app.blueprints %}
+      <a href="{{ url_for('admin.index') }}">Admin</a>
+    {% endif %}
+
     <div class="right">
       {% if user %}
         <span style="margin-right:.8rem; opacity:.9;">👤 {{ user.nombre }} ({{ user.rol.value }})</span>
         <a href="{{ url_for('auth.logout') }}">Salir</a>
       {% else %}
-        <a href="{{ url_for('auth.login') }}">Login Google</a>
+        <a href="{{ url_for('auth.login_form') }}">Ingresar</a>
+        <a href="{{ url_for('auth.register') }}" style="margin-left:.6rem;">Registrarse</a>
+        <a href="{{ url_for('auth.login') }}" style="margin-left:.6rem;">Google</a>
       {% endif %}
     </div>
   </nav>

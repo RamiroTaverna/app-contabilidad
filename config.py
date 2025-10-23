@@ -1,7 +1,7 @@
 # config.py
 import os
-from dotenv import load_dotenv  # pip install python-dotenv (opcional si usás .env)
-load_dotenv()
+from dotenv import load_dotenv, find_dotenv  # pip install python-dotenv (opcional si usás .env)
+load_dotenv(find_dotenv())
 
 class Config:
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "mysql+pymysql://root:@localhost/sistema_contable")

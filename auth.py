@@ -5,11 +5,13 @@ from typing import Optional
 
 from flask import (
     Blueprint, redirect, url_for, session, request, abort,
-    current_app as app
+    current_app as app, render_template
 )
 from authlib.integrations.flask_client import OAuth
+from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import db, Usuario, Rol
+from auth_forms import LoginForm, RegisterForm
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 oauth = OAuth()
@@ -133,3 +135,38 @@ def devlogin():
         db.session.add(user); db.session.commit()
     session["uid"] = user.id
     return redirect(url_for("home"))
+
+@bp.route("/login_form", methods=["GET", "POST"])
+def login_form():
+    form = LoginForm()
+    if form.validate_on_submit():
+        u = Usuario.query.filter_by(correo=form.email.data.lower()).first()
+        if not u or not u.contrasena_hash or not check_password_hash(u.contrasena_hash, form.password.data):
+            return redirect(url_for("auth.login_form"))
+        session["uid"] = u.id
+        empresa_opt = (form.empresa.data or "").strip()
+        if empresa_opt:
+            session["login_empresa"] = empresa_opt
+        if u.rol == Rol.admin:
+            return redirect(url_for("admin.index"))
+        return redirect(url_for("home"))
+    return render_template("auth/login.html", form=form)
+
+@bp.route("/register", methods=["GET", "POST"])
+def register():
+    form = RegisterForm()
+    if form.validate_on_submit():
+        email = form.email.data.lower()
+        if Usuario.query.filter_by(correo=email).first():
+            return redirect(url_for("auth.register"))
+        u = Usuario(
+            nombre=form.nombre.data.strip(),
+            correo=email,
+            contrasena_hash=generate_password_hash(form.password.data),
+            rol=Rol.empleado,
+        )
+        db.session.add(u)
+        db.session.commit()
+        session["uid"] = u.id
+        return redirect(url_for("home"))
+    return render_template("auth/register.html", form=form)

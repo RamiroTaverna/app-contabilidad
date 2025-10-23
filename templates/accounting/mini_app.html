@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}Mini Contable{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='accounting/mini.css') }}">
+<div class="msc-body" data-empresa="{{ empresa_sel or '' }}">
+  <header class="msc-header">
+    <div class="msc-wrap">
+      <h1 class="msc-title">Mini Sistema Contable</h1>
+      <div class="msc-sub">Libro Diario → Libro Mayor → Balance de Comprobación → Estados Financieros (Resultados & Balance General).</div>
+      <nav id="tabs"></nav>
+      {% if empresas is not none %}
+      <form method="get" action="{{ url_for('accounting.mini') }}" style="margin-top:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+        <label style="font-size:12px; color:var(--muted)">Empresa
+          <select name="empresa" style="margin-left:6px; min-width:220px">
+            <option value="">— Elegir —</option>
+            {% for e in empresas %}
+              <option value="{{ e.id_empresa }}" {% if empresa_sel == e.id_empresa %}selected{% endif %}>{{ e.nombre }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button class="btn">Ver</button>
+      </form>
+      {% endif %}
+    </div>
+  </header>
+
+  <main class="msc-main">
+    <section id="sec-cuentas">
+      <div class="title">
+        <h2>Plan de Cuentas</h2>
+        <div class="actions">
+          <button class="btn ghost" id="seedBtn">Cargar ejemplo</button>
+          <button class="btn" id="exportBtn">Exportar JSON</button>
+          <input type="file" id="importFile" class="hidden" accept="application/json" />
+          <button class="btn" id="importBtn">Importar JSON</button>
+          <button class="btn danger" id="resetBtn">Borrar todo</button>
+        </div>
+      </div>
+      <div class="grid two" style="padding:14px 16px">
+        <div>
+          <label>Código</label>
+          <input id="accCode" placeholder="1101" />
+        </div>
+        <div>
+          <label>Nombre</label>
+          <input id="accName" placeholder="Caja" />
+        </div>
+        <div>
+          <label>Tipo</label>
+          <select id="accType">
+            <option>Activo</option>
+            <option>Pasivo</option>
+            <option>Patrimonio</option>
+            <option>Ingreso</option>
+            <option>Gasto</option>
+          </select>
+        </div>
+        <div style="align-self:end">
+          <button class="btn primary" id="addAcc">Agregar cuenta</button>
+        </div>
+      </div>
+      <div style="padding:0 0 12px 0;max-height:260px;overflow:auto">
+        <table id="tablaCuentas">
+          <thead>
+            <tr><th style="width:120px">Código</th><th>Nombre</th><th style="width:140px">Tipo</th><th style="width:90px">Acciones</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="sec-diario">
+      <div class="title">
+        <h2>Libro Diario (Asientos)</h2>
+        <div class="actions">
+          <span class="pill monospace" id="infoDescuadre">=</span>
+        </div>
+      </div>
+      <div class="grid three" style="padding:14px 16px">
+        <div>
+          <label>Fecha</label>
+          <input type="date" id="jeDate" />
+        </div>
+        <div>
+          <label>Concepto</label>
+          <input id="jeConcepto" placeholder="Venta contado / Pago proveedores / etc." />
+        </div>
+        <div style="align-self:end">
+          <button class="btn primary" id="addLinea">Añadir línea</button>
+          <button class="btn accent" id="addAsiento">Guardar asiento</button>
+        </div>
+      </div>
+      <div style="padding:0 0 12px 0">
+        <table id="tablaEntrada">
+          <thead>
+            <tr>
+              <th style="width:250px">Cuenta</th>
+              <th style="width:130px">Debe</th>
+              <th style="width:130px">Haber</th>
+              <th style="width:90px">Acción</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot>
+            <tr>
+              <td>Total</td>
+              <td class="monospace" id="totDebe">0.00</td>
+              <td class="monospace" id="totHaber">0.00</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div style="max-height:260px;overflow:auto">
+        <table id="tablaDiario">
+          <thead>
+            <tr>
+              <th style="width:110px">Fecha</th>
+              <th>Concepto</th>
+              <th style="width:120px">Debe</th>
+              <th style="width:120px">Haber</th>
+              <th style="width:110px">Acción</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="sec-mayor">
+      <div class="title">
+        <h2>Libro Mayor</h2>
+        <div class="actions">
+          <span class="pill" id="saldoInfo">—</span>
+          <button class="btn" id="repostBtn">Re-postear</button>
+        </div>
+      </div>
+      <div style="padding:12px 16px">
+        <div class="hint">Selecciona una cuenta para ver su mayor:</div>
+        <select id="selMayor" style="margin:8px 0;max-width:420px"></select>
+      </div>
+      <div style="max-height:280px;overflow:auto">
+        <table id="tablaMayor">
+          <thead>
+            <tr>
+              <th style="width:110px">Fecha</th>
+              <th>Concepto</th>
+              <th style="width:100px">Debe</th>
+              <th style="width:100px">Haber</th>
+              <th style="width:120px">Saldo</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="sec-balance">
+      <div class="title">
+        <h2>Balance de Comprobación</h2>
+        <div class="actions">
+          <span class="pill" id="chkBalance">—</span>
+        </div>
+      </div>
+      <div style="max-height:480px;overflow:auto">
+        <table id="tablaTrial">
+          <thead>
+            <tr>
+              <th style="width:120px">Código</th>
+              <th>Cuenta</th>
+              <th style="width:120px">Saldo Deudor</th>
+              <th style="width:120px">Saldo Acreedor</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2">Totales</td>
+              <td id="trialDebe" class="monospace">0.00</td>
+              <td id="trialHaber" class="monospace">0.00</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <section id="sec-estados">
+      <div class="title">
+        <h2>Estados Financieros</h2>
+        <div class="actions"></div>
+      </div>
+      <div class="grid two" style="padding:14px 16px">
+        <div>
+          <h3>Estado de Resultados</h3>
+          <table id="tablaER">
+            <tbody></tbody>
+            <tfoot>
+              <tr><td><strong>Utilidad del período</strong></td><td class="monospace" id="erUtil">0.00</td></tr>
+            </tfoot>
+          </table>
+        </div>
+        <div>
+          <h3>Balance General (Clasificado)</h3>
+          <table id="tablaBG">
+            <tbody></tbody>
+            <tfoot>
+              <tr><td><strong>Activo</strong></td><td class="monospace" id="bgAct">0.00</td></tr>
+              <tr><td><strong>Pasivo + Patrimonio</strong></td><td class="monospace" id="bgPP">0.00</td></tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+      <div class="footer">La utilidad del período se suma al Patrimonio en el Balance General.</div>
+    </section>
+  </main>
+</div>
+<script type="module" src="{{ url_for('static', filename='accounting/api.js') }}"></script>
+<script src="{{ url_for('static', filename='accounting/mini.js') }}"></script>
+{% endblock %}

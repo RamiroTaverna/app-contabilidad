@@ -9,8 +9,9 @@
     <div class="actions" style="margin-top:1.5rem;">
       <a class="btn" href="{{ url_for('companies.list_companies') }}">Ver Empresas</a>
       {% if user.rol.value == "docente" %}
-        <a class="btn ghost" href="{{ url_for('accounting.journal') }}">Panel Contable</a>
+        <a class="btn ghost" href="{{ url_for('accounting.journal_list') }}">Panel Contable</a>
       {% endif %}
+      <a class="btn ghost" href="{{ url_for('accounting.mini') }}">Mini Contable</a>
       <a class="btn ghost" href="{{ url_for('auth.logout') }}">Cerrar Sesión</a>
     </div>
 

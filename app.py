@@ -14,6 +14,19 @@ except Exception as e:
     print("[INFO] accounting blueprint no disponible:", e)
     accounting_bp = None
 
+# Nuevos blueprints: admin y reports
+try:
+    from admin import bp as admin_bp
+except Exception as e:
+    print("[INFO] admin blueprint no disponible:", e)
+    admin_bp = None
+
+try:
+    from reports import bp as reports_bp
+except Exception as e:
+    print("[INFO] reports blueprint no disponible:", e)
+    reports_bp = None
+
 
 def create_app():
     app = Flask(__name__)
@@ -58,6 +71,10 @@ def create_app():
     app.register_blueprint(companies_bp)
     if accounting_bp:
         app.register_blueprint(accounting_bp)
+    if admin_bp:
+        app.register_blueprint(admin_bp)
+    if reports_bp:
+        app.register_blueprint(reports_bp)
 
     # Diagnóstico en consola
     print("BLUEPRINTS cargados:", list(app.blueprints.keys()))

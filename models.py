@@ -8,6 +8,7 @@ db = SQLAlchemy()
 
 # --------- Enum de roles ---------
 class Rol(enum.Enum):
+    admin = "admin"
     docente = "docente"
     empleado = "empleado"
     dueno = "dueno"
@@ -71,6 +72,22 @@ class EmpresaEmpleado(db.Model):
 from sqlalchemy import Enum as SAEnum, UniqueConstraint
 from datetime import date
 
+class PlanCuenta(db.Model):
+    __tablename__ = "plan_cuentas"
+
+    id_cuenta = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id_empresa = db.Column(db.Integer, db.ForeignKey("empresas.id_empresa"), nullable=False)
+    cod_rubro = db.Column(db.String(50))
+    rubro = db.Column(db.String(100))
+    cod_subrubro = db.Column(db.String(50))
+    subrubro = db.Column(db.String(100))
+    cuenta = db.Column(db.String(100))
+
+    empresa = relationship("Empresa")
+
+    def __repr__(self):
+        return f"<PlanCuenta {self.id_cuenta} {self.cuenta}>"
+
 class Asiento(db.Model):
     __tablename__ = "asientos_diarios"
 
@@ -102,10 +119,11 @@ class DetalleAsiento(db.Model):
         db.ForeignKey("asientos_diarios.id_asiento", ondelete="CASCADE"),
         nullable=False,
     )
-    # Para arrancar simple usamos una "cuenta" textual. Luego la conectamos a plan_cuentas.id_cuenta
-    cuenta = db.Column(db.String(100), nullable=False)
+    # Ahora vinculada al plan de cuentas por empresa
+    id_cuenta = db.Column(db.Integer, db.ForeignKey("plan_cuentas.id_cuenta"), nullable=False)
 
     tipo = db.Column(SAEnum("debe", "haber", name="tipo_asiento"), nullable=False)
     importe = db.Column(db.Numeric(12, 2), nullable=False)
 
     asiento = db.relationship("Asiento", back_populates="detalles")
+    cuenta_ref = db.relationship("PlanCuenta")
