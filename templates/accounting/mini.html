@@ -181,94 +181,7 @@
       </div>
     </section>
 
-    <!-- Libro Mayor -->
-    <section id="sec-mayor">
-      <div class="title">
-        <h2>Libro Mayor</h2>
-        <div class="actions">
-          <span class="pill" id="saldoInfo">—</span>
-          <button class="btn" id="repostBtn">Re-postear</button>
-        </div>
-      </div>
-      <div style="padding:12px 16px">
-        <div class="hint">Selecciona una cuenta para ver su mayor:</div>
-        <select id="selMayor" style="margin:8px 0;max-width:420px"></select>
-      </div>
-      <div style="max-height:280px;overflow:auto">
-        <table id="tablaMayor">
-          <thead>
-            <tr>
-              <th style="width:110px">Fecha</th>
-              <th>Concepto</th>
-              <th style="width:100px">Debe</th>
-              <th style="width:100px">Haber</th>
-              <th style="width:120px">Saldo</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Balance de comprobación -->
-    <section id="sec-balance">
-      <div class="title">
-        <h2>Balance de Comprobación</h2>
-        <div class="actions">
-          <span class="pill" id="chkBalance">—</span>
-        </div>
-      </div>
-      <div style="max-height:260px;overflow:auto">
-        <table id="tablaTrial">
-          <thead>
-            <tr>
-              <th style="width:120px">Código</th>
-              <th>Cuenta</th>
-              <th style="width:120px">Saldo Deudor</th>
-              <th style="width:120px">Saldo Acreedor</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-          <tfoot>
-            <tr>
-              <td colspan="2">Totales</td>
-              <td id="trialDebe" class="monospace">0.00</td>
-              <td id="trialHaber" class="monospace">0.00</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </section>
-
-    <!-- Estados Financieros -->
-    <section id="sec-estados">
-      <div class="title">
-        <h2>Estados Financieros</h2>
-        <div class="actions"></div>
-      </div>
-      <div class="grid two" style="padding:14px 16px">
-        <div>
-          <h3>Estado de Resultados</h3>
-          <table id="tablaER">
-            <tbody></tbody>
-            <tfoot>
-              <tr><td><strong>Utilidad del período</strong></td><td class="monospace" id="erUtil">0.00</td></tr>
-            </tfoot>
-          </table>
-        </div>
-        <div>
-          <h3>Balance General (Clasificado)</h3>
-          <table id="tablaBG">
-            <tbody></tbody>
-            <tfoot>
-              <tr><td><strong>Activo</strong></td><td class="monospace" id="bgAct">0.00</td></tr>
-              <tr><td><strong>Pasivo + Patrimonio</strong></td><td class="monospace" id="bgPP">0.00</td></tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-      <div class="footer">La utilidad del período se suma al Patrimonio en el Balance General.</div>
-    </section>
+    
   </main>
 
   <script>
@@ -293,9 +206,6 @@
     const secciones = [
       {id:'sec-cuentas', label:'Plan de Cuentas'},
       {id:'sec-diario', label:'Libro Diario'},
-      {id:'sec-mayor', label:'Libro Mayor'},
-      {id:'sec-balance', label:'Balance de Comprobación'},
-      {id:'sec-estados', label:'Estados Financieros'},
     ];
     const tabs = $('#tabs');
     secciones.forEach((s,i)=>{
@@ -323,8 +233,9 @@
       const sel = document.createElement('select');
       sel.innerHTML = cuentas.map(c=>`<option value="${c.code}">${c.code} — ${c.name}</option>`).join('');
       $$('#tablaEntrada tbody tr select.account').forEach(s=>{ s.innerHTML = sel.innerHTML; });
-      // mayor selector
-      $('#selMayor').innerHTML = '<option value="">— Elegir —</option>' + cuentas.map(c=>`<option value="${c.code}">${c.code} — ${c.name}</option>`).join('');
+      // mayor selector (ya no visible en Mini)
+      const selMayorEl = $('#selMayor');
+      if(selMayorEl){ selMayorEl.innerHTML = '<option value="">— Elegir —</option>' + cuentas.map(c=>`<option value="${c.code}">${c.code} — ${c.name}</option>`).join(''); }
     }
 
     $('#addAcc').onclick = ()=>{
@@ -576,7 +487,7 @@
     }
 
     // --- Render maestro ---
-    function renderTodo(){ renderMayor(); renderTrial(); renderEstados(); }
+    function renderTodo(){}
 
     // Inicializar
     store.load(); renderCuentas(); renderDiario(); renderEntrada(); renderTodo();

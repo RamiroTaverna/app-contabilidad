@@ -1,12 +1,65 @@
 {% extends 'base.html' %}
 {% block title %}Reportes{% endblock %}
 {% block content %}
-<h1>Reportes</h1>
-<ul>
-  <li><a href="#">Libro Diario</a></li>
-  <li><a href="#">Libro Mayor</a></li>
-  <li><a href="#">Gráficos</a></li>
-  <li><a href="#">Estados</a></li>
-  <li><a href="#">Índices</a></li>
-</ul>
+<section>
+  <div class="title">
+    <h2>Reportes</h2>
+    <div class="actions"></div>
+  </div>
+  <div style="padding:12px 16px">
+    <div id="rep-tabs" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px"></div>
+    <div id="rep-views">
+      <iframe id="view-diario" src="{{ url_for('reports.diario', embed=1) }}" style="width:100%; height:720px; border:0; border-radius:12px; display:block"></iframe>
+      <iframe id="view-mayor" src="{{ url_for('reports.mayor', embed=1) }}" style="width:100%; height:720px; border:0; border-radius:12px; display:none"></iframe>
+      <iframe id="view-balance" src="{{ url_for('reports.balance', embed=1) }}" style="width:100%; height:720px; border:0; border-radius:12px; display:none"></iframe>
+      <iframe id="view-estado" src="{{ url_for('reports.estado', embed=1) }}" style="width:100%; height:720px; border:0; border-radius:12px; display:none"></iframe>
+      <iframe id="view-graficos" src="{{ url_for('reports.graficos', embed=1) }}" style="width:100%; height:560px; border:0; border-radius:12px; display:none"></iframe>
+      <iframe id="view-indices" src="{{ url_for('reports.indices', embed=1) }}" style="width:100%; height:520px; border:0; border-radius:12px; display:none"></iframe>
+    </div>
+  </div>
+</section>
+<script>
+(function(){
+  const tabs = [
+    { id:'view-diario', label:'Libro Diario' },
+    { id:'view-mayor', label:'Libro Mayor' },
+    { id:'view-balance', label:'Balance de Comprobación' },
+    { id:'view-estado', label:'Estado Patrimonial' },
+    { id:'view-graficos', label:'Gráficos' },
+    { id:'view-indices', label:'Indicadores' },
+  ];
+  const ct = document.getElementById('rep-tabs');
+  const show = (id)=>{ tabs.forEach(t=>{ const el = document.getElementById(t.id); if(el) el.style.display = (t.id===id)? 'block':'none'; });
+    Array.from(ct.children).forEach(b=> b.classList.remove('active'));
+    const btn = ct.querySelector(`[data-for="${id}"]`); if(btn) btn.classList.add('active');
+  };
+  tabs.forEach((t,i)=>{
+    const b = document.createElement('button'); b.className = 'btn'; if(i===0) b.classList.add('active'); b.textContent = t.label; b.dataset.for = t.id; b.onclick = ()=> show(t.id); ct.appendChild(b);
+  });
+  // Drill-down: abrir Mayor desde iframes hijos
+  window.addEventListener('message', (ev)=>{
+    const msg = ev.data || {};
+    if(msg.type === 'openMayor'){
+      show('view-mayor');
+      const mayorFrame = document.getElementById('view-mayor');
+      try{ mayorFrame.contentWindow.postMessage(msg, '*'); }catch(e){}
+      return;
+    }
+    if(msg.type === 'contentHeight'){
+      // ajustar altura del iframe que envió el mensaje
+      const iframes = Array.from(document.querySelectorAll('#rep-views iframe'));
+      const frame = iframes.find(f => f.contentWindow === ev.source);
+      if(frame && Number(msg.height)){
+        const extra = 40; // padding
+        frame.style.height = Math.min(1200, Math.max(360, Number(msg.height) + extra)) + 'px';
+      }
+      return;
+    }
+    if(msg.type === 'openBalance'){
+      show('view-balance');
+      return;
+    }
+  });
+})();
+</script>
 {% endblock %}

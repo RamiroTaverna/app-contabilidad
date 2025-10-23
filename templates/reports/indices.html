@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <div class="title">
+    <h2>Análisis de Indicadores</h2>
+    <div class="actions">
+      <label>Desde <input type="date" id="desde"></label>
+      <label>Hasta <input type="date" id="hasta"></label>
+      <button id="btn-actualizar" class="btn">Actualizar</button>
+    </div>
+  </div>
+  <div style="padding:12px 16px">
+    <div id="kpis" style="display:grid; grid-template-columns: repeat(5, 1fr); gap:10px; margin-bottom:12px">
+      <div class="card" style="padding:10px; border:1px solid var(--border); border-radius:10px">
+        <div style="font-size:12px; color:var(--muted)">Liquidez</div>
+        <div id="kpi-liq" style="font-size:20px; font-weight:600">—</div>
+      </div>
+      <div class="card" style="padding:10px; border:1px solid var(--border); border-radius:10px">
+        <div style="font-size:12px; color:var(--muted)">Solvencia</div>
+        <div id="kpi-sol" style="font-size:20px; font-weight:600">—</div>
+      </div>
+      <div class="card" style="padding:10px; border:1px solid var(--border); border-radius:10px">
+        <div style="font-size:12px; color:var(--muted)">Endeudamiento</div>
+        <div id="kpi-end" style="font-size:20px; font-weight:600">—</div>
+      </div>
+      <div class="card" style="padding:10px; border:1px solid var(--border); border-radius:10px">
+        <div style="font-size:12px; color:var(--muted)">Costo/Ventas</div>
+        <div id="kpi-cv" style="font-size:20px; font-weight:600">—</div>
+      </div>
+      <div class="card" style="padding:10px; border:1px solid var(--border); border-radius:10px">
+        <div style="font-size:12px; color:var(--muted)">ROI</div>
+        <div id="kpi-roi" style="font-size:20px; font-weight:600">—</div>
+      </div>
+    </div>
+    <table id="tabla-ind">
+      <thead>
+        <tr>
+          <th style="width:52%">Indicador</th>
+          <th style="width:24%">Fórmula</th>
+          <th style="width:24%">Valor</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Índice de liquidez (corriente)</td>
+          <td>Activos corrientes / Pasivos corrientes</td>
+          <td class="monospace" id="ind-liquidez">—</td>
+        </tr>
+        <tr>
+          <td>Índice de solvencia</td>
+          <td>Activos / Pasivos</td>
+          <td class="monospace" id="ind-solvencia">—</td>
+        </tr>
+        <tr>
+          <td>Índice de endeudamiento</td>
+          <td>Pasivos / Patrimonio</td>
+          <td class="monospace" id="ind-endeudamiento">—</td>
+        </tr>
+        <tr>
+          <td>Índice del costo de ventas</td>
+          <td>Costo de ventas / Ventas</td>
+          <td class="monospace" id="ind-costo-ventas">—</td>
+        </tr>
+        <tr>
+          <td>Retorno de la inversión (ROI)</td>
+          <td>Utilidad / Patrimonio</td>
+          <td class="monospace" id="ind-roi">—</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="hint" style="margin-top:10px">Los valores se calculan a partir de saldos y estados contables actuales.</div>
+  </div>
+</section>
+<script>
+(async function(){
+  function fmt(n){ return (n===null||n===undefined) ? '—' : (Number(n).toFixed(2)); }
+  function setKpi(el, val, ok){ el.textContent = fmt(val); el.style.color = (val===null||val===undefined)? 'var(--muted)' : (ok? 'var(--green)': 'var(--red)'); }
+  async function actualizar(){
+    const qs = new URLSearchParams();
+    const d = document.getElementById('desde').value; if(d) qs.set('desde', d);
+    const h = document.getElementById('hasta').value; if(h) qs.set('hasta', h);
+    const r = await fetch('/accounting/api/indices' + (qs.toString()? ('?'+qs.toString()) : ''));
+    const data = await r.json();
+    document.getElementById('ind-liquidez').textContent = fmt(data.liquidez);
+    document.getElementById('ind-solvencia').textContent = fmt(data.solvencia);
+    document.getElementById('ind-endeudamiento').textContent = fmt(data.endeudamiento);
+    document.getElementById('ind-costo-ventas').textContent = fmt(data.costo_ventas);
+    document.getElementById('ind-roi').textContent = fmt(data.roi);
+    // KPIs con semáforo (umbral base: liquidez>=1, solvencia>=1, endeudamiento<=1, costo_ventas<=0.6, roi>=0.1)
+    setKpi(document.getElementById('kpi-liq'), data.liquidez, (data.liquidez||0) >= 1);
+    setKpi(document.getElementById('kpi-sol'), data.solvencia, (data.solvencia||0) >= 1);
+    setKpi(document.getElementById('kpi-end'), data.endeudamiento, (data.endeudamiento||0) <= 1 && data.endeudamiento!==null);
+    setKpi(document.getElementById('kpi-cv'), data.costo_ventas, (data.costo_ventas||0) <= 0.6);
+    setKpi(document.getElementById('kpi-roi'), data.roi, (data.roi||0) >= 0.1);
+    postHeight();
+  }
+  document.getElementById('btn-actualizar').addEventListener('click', actualizar);
+  actualizar();
+  // Autoaltura
+  function postHeight(){ try{ const h = document.documentElement.scrollHeight; window.parent.postMessage({type:'contentHeight', height:h}, '*'); }catch(e){} }
+  const ro = new ResizeObserver(()=> postHeight()); ro.observe(document.body);
+  setTimeout(postHeight, 50);
+})();
+</script>
+{% endblock %}

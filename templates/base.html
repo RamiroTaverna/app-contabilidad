@@ -6,9 +6,11 @@
   <title>{% block title %}Sistema Contable{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='accounting/mini.css') }}">
 </head>
 <body>
   <!-- NAVBAR -->
+  {% if not request.args.get('embed') %}
   <nav class="nav">
     <a href="{{ url_for('home') }}">Inicio</a>
 
@@ -39,6 +41,7 @@
       {% endif %}
     </div>
   </nav>
+  {% endif %}
 
   <!-- CONTENT -->
   <main class="container">

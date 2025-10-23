@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <div class="title">
+    <h2>Libro Diario</h2>
+    <div class="actions">
+      <label>Desde <input type="date" id="desde"></label>
+      <label>Hasta <input type="date" id="hasta"></label>
+      <button id="btn-export" class="btn primary">Exportar PDF</button>
+      <a class="btn ghost" href="{{ url_for('accounting.mini') }}">Editar en Mini Contable</a>
+    </div>
+  </div>
+  <div style="max-height:480px; overflow:auto">
+    <table id="tabla-diario">
+      <thead>
+        <tr>
+          <th style="width:110px">Fecha</th>
+          <th style="width:110px">N° Asiento</th>
+          <th>Cuenta</th>
+          <th style="width:120px">Debe</th>
+          <th style="width:120px">Haber</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+<script>
+(async function(){
+  async function cargar(){
+    const qs = new URLSearchParams();
+    const d = document.getElementById('desde').value; if(d) qs.set('desde', d);
+    const h = document.getElementById('hasta').value; if(h) qs.set('hasta', h);
+    const res = await fetch(`/accounting/api/asientos` + (qs.toString()? ('?'+qs.toString()):''));
+    const data = await res.json();
+    const tbody = document.querySelector('#tabla-diario tbody');
+    tbody.innerHTML = '';
+    for (const a of data) {
+      for (const d of (a.detalles||[])){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${a.fecha}</td>
+          <td>${a.num_asiento}</td>
+          <td>${d.cuenta||''}</td>
+          <td class=\"monospace\" style=\"text-align:right\">${d.tipo==='debe'? d.importe.toFixed(2): ''}</td>
+          <td class=\"monospace\" style=\"text-align:right\">${d.tipo==='haber'? d.importe.toFixed(2): ''}</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+  }
+  document.getElementById('btn-export').addEventListener('click', () => {
+    const qs = new URLSearchParams();
+    const d = document.getElementById('desde').value; if(d) qs.set('desde', d);
+    const h = document.getElementById('hasta').value; if(h) qs.set('hasta', h);
+    const url = `/reports/diario/export` + (qs.toString()? ('?'+qs.toString()):'');
+    window.open(url, '_blank');
+  });
+  document.getElementById('desde').addEventListener('change', cargar);
+  document.getElementById('hasta').addEventListener('change', cargar);
+  cargar();
+})();
+</script>
+{% endblock %}

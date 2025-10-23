@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <div class="title">
+    <h2>Gráficos</h2>
+    <div class="actions">
+      <label>Tipo
+        <select id="tipoGraf">
+          <option value="bar">Barras</option>
+          <option value="pie">Torta</option>
+        </select>
+      </label>
+      <button id="btn-actualizar" class="btn">Actualizar</button>
+    </div>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:12px 16px; align-items:center;">
+    <div>
+      <h3 style="margin:0 0 6px 0; font-size:20px; color:var(--muted)">Porcentaje por rubros</h3>
+      <div style="height:270px; position:relative">
+        <canvas id="chartRubros" style="width:100%; height:100%"></canvas>
+      </div>
+    </div>
+    <div>
+      <h3 style="margin:0 0 6px 0; font-size:20px; color:var(--muted)">Porcentaje por subrubros</h3>
+      <div style="height:270px; position:relative">
+        <canvas id="chartSub" style="width:100%; height:100%"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:12px 16px; align-items:center;">
+    <div>
+      <h3 style="margin:0 0 6px 0; font-size:16px; color:var(--muted)">Liquidez (Activo Corriente vs Pasivo Corriente)</h3>
+      <div style="height:220px; position:relative">
+        <canvas id="chartLiquidez" style="width:100%; height:100%"></canvas>
+      </div>
+    </div>
+    <div>
+      <h3 style="margin:0 0 6px 0; font-size:16px; color:var(--muted)">Resultado del período (Ventas, Costo, Utilidad)</h3>
+      <div style="height:220px; position:relative">
+        <canvas id="chartResultado" style="width:100%; height:100%"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:12px 16px; align-items:center;">
+    <h3 style="margin:0 0 6px 0; font-size:16px; color:var(--muted)">Composición del Activo (por subrubro)</h3>
+    <div style="height:260px; position:relative">
+      <canvas id="chartActivoComp" style="width:100%; height:100%"></canvas>
+    </div>
+  </div>
+</section>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(async function(){
+  let rubrosChart = null, subChart = null;
+  let liqChart = null, resChart = null, actCompChart = null;
+  function palette(n){
+    const colors = ['#0d6efd','#198754','#6610f2','#e83e8c','#fd7e14','#20c997','#6c757d','#dc3545','#0dcaf0'];
+    const res = [];
+    for(let i=0;i<n;i++){ res.push(colors[i%colors.length]); }
+    return res;
+  }
+  function renderChart(ctx, type, labels, values){
+    const data = { labels, datasets: [{ label: '', data: values, backgroundColor: palette(values.length) }] };
+    return new Chart(ctx, { type, data, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: type==='pie', labels: { boxWidth: 10, boxHeight: 10, font: { size: 10 } } } }, scales: type==='bar'? { x: { ticks: { font: { size: 10 } } }, y: { ticks: { font: { size: 10 } } } } : {} } });
+  }
+  function renderDoughnut(ctx, labels, values){
+    const data = { labels, datasets: [{ data: values, backgroundColor: palette(values.length), borderWidth: 1 }] };
+    return new Chart(ctx, { type: 'doughnut', data, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } } });
+  }
+  async function cargarIndices(){
+    const r = await fetch('/accounting/api/indices');
+    const d = await r.json();
+    // Liquidez
+    const liqLbl = ['Activo Corriente', 'Pasivo Corriente'];
+    const liqVals = [Math.max(0, d.componentes.activo_corriente||0), Math.max(0, d.componentes.pasivo_corriente||0)];
+    if(liqChart) liqChart.destroy();
+    liqChart = renderDoughnut(document.getElementById('chartLiquidez'), liqLbl, liqVals);
+    // Resultado (ventas, costo, utilidad)
+    const resLbl = ['Ventas', 'Costo de Ventas', 'Utilidad'];
+    const resVals = [Math.max(0, d.componentes.ventas||0), Math.max(0, d.componentes.costo_ventas||0), Math.max(0, d.componentes.utilidad||0)];
+    if(resChart) resChart.destroy();
+    resChart = renderDoughnut(document.getElementById('chartResultado'), resLbl, resVals);
+    // Sin drill-down por click
+  }
+  async function cargarActivoComposicion(){
+    // Usar /api/cuentas + /api/balance para agrupar por SUBRUBRO solo los activos
+    const rC = await fetch('/accounting/api/cuentas'); const cuentas = await rC.json();
+    const rB = await fetch('/accounting/api/balance'); const bal = await rB.json();
+    const nb = {}; cuentas.forEach(c=>{ const t = ([(c.rubro||''), (c.subrubro||'')].join(' ').toLowerCase()); nb[c.id_cuenta] = (t.includes('activo')||t.includes('caja')||t.includes('banco')||t.includes('clientes')||t.includes('inventario')) ? 'D' : 'H'; });
+    const saldoMap = new Map(); bal.rows.forEach(r=>{ const side = nb[r.id_cuenta]||'D'; let s = (side==='D')? (r.deudor - r.acreedor) : (r.acreedor - r.deudor); if(s<0) s = -s; const cu = cuentas.find(c=>c.id_cuenta===r.id_cuenta); if(!cu) return; const isActivo = ([(cu.rubro||''),(cu.subrubro||'')].join(' ').toLowerCase()).includes('activo') || (cu.rubro||'').toLowerCase().includes('caja') || (cu.rubro||'').toLowerCase().includes('banco'); if(!isActivo) return; const key = cu.subrubro || 'Sin subrubro'; const prev = saldoMap.get(key)||0; saldoMap.set(key, prev + s); });
+    const labels = Array.from(saldoMap.keys()); const values = labels.map(k=> saldoMap.get(k));
+    if(actCompChart) actCompChart.destroy();
+    actCompChart = renderDoughnut(document.getElementById('chartActivoComp'), labels, values);
+    // Sin drill-down por click
+  }
+  async function topCuentaPorSubrubro(subrubro){
+    const [cR, bR] = await Promise.all([fetch('/accounting/api/cuentas'), fetch('/accounting/api/balance')]);
+    const cuentas = await cR.json(); const bal = await bR.json();
+    const cs = cuentas.filter(c=> (c.subrubro||'') === subrubro);
+    let top = { id: null, val: -1 };
+    for(const c of cs){ const row = bal.rows.find(r=> r.id_cuenta === c.id_cuenta); if(!row) continue; const val = (row.deudor||0) + (row.acreedor||0); if(val > top.val){ top = { id: c.id_cuenta, val }; } }
+    return { topCuentaId: top.id };
+  }
+  async function topCuentaPorCategoria(cat){
+    // cat: 'Ventas' | 'Costo de Ventas' | 'Utilidad'
+    const [cR, bR] = await Promise.all([fetch('/accounting/api/cuentas'), fetch('/accounting/api/balance')]);
+    const cuentas = await cR.json(); const bal = await bR.json();
+    const isIngreso = (t)=> t.includes('ingreso') || t.includes('ventas');
+    const isCosto = (t)=> t.includes('costo');
+    const txt = (c)=> ([(c.rubro||''),(c.subrubro||'')].join(' ').toLowerCase());
+    let cand = [];
+    if(cat==='Ventas') cand = cuentas.filter(c=> isIngreso(txt(c)));
+    else if(cat==='Costo de Ventas') cand = cuentas.filter(c=> isCosto(txt(c)));
+    else if(cat==='Utilidad') cand = cuentas.filter(c=> isIngreso(txt(c)) || isCosto(txt(c)));
+    let top = { id:null, val:-1 };
+    for(const c of cand){ const row = bal.rows.find(r=> r.id_cuenta === c.id_cuenta); if(!row) continue; const val = Math.abs((r=> (r.deudor||0)-(r.acreedor||0))(row)); if(val > top.val){ top={id:c.id_cuenta, val}; } }
+    return { topCuentaId: top.id };
+  }
+  async function actualizar(){
+    const r = await fetch(`/accounting/api/estados`);
+    const est = await r.json();
+    const rubros = ['Activo','Pasivo','Patrimonio'];
+    const rubrosVals = [Math.max(0, est.bg.activo||0), Math.max(0, est.bg.pasivo||0), Math.max(0, est.bg.patrimonio||0)];
+    const sub = ['Ingresos','Gastos','Activo','Pasivo','Patrimonio'];
+    const subVals = [Math.max(0, est.er.ingresos||0), Math.max(0, est.er.gastos||0), Math.max(0, est.bg.activo||0), Math.max(0, est.bg.pasivo||0), Math.max(0, est.bg.patrimonio||0)];
+    const tipo = document.getElementById('tipoGraf').value;
+    if(rubrosChart){ rubrosChart.destroy(); };
+    if(subChart){ subChart.destroy(); };
+    rubrosChart = renderChart(document.getElementById('chartRubros'), tipo, rubros, rubrosVals);
+    subChart = renderChart(document.getElementById('chartSub'), tipo, sub, subVals);
+    await cargarIndices();
+    await cargarActivoComposicion();
+    postHeight();
+  }
+  document.getElementById('btn-actualizar').addEventListener('click', actualizar);
+  actualizar();
+  // Autoaltura
+  function postHeight(){ try{ const h = document.documentElement.scrollHeight; window.parent.postMessage({type:'contentHeight', height:h}, '*'); }catch(e){} }
+  const ro = new ResizeObserver(()=> postHeight()); ro.observe(document.body);
+  setTimeout(postHeight, 50);
+})();
+</script>
+{% endblock %}

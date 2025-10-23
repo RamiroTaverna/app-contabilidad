@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <div class="title">
+    <h2>Estado de Situación Patrimonial</h2>
+    <div class="actions">
+      <button id="btn-actualizar" class="btn">Actualizar</button>
+    </div>
+  </div>
+  <div style="max-height:420px; overflow:auto">
+    <table id="tabla-esp">
+      <thead>
+        <tr>
+          <th>Cod Rubro</th>
+          <th>Rubro</th>
+          <th>Cod Subrubro</th>
+          <th>Subrubro</th>
+          <th style="text-align:right">Importe</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+<script>
+(async function(){
+  function groupByRubro(cuentas, balance){
+    // Map de saldo por cuenta (debe/ haber ya normalizados en /api/balance)
+    const map = new Map();
+    for (const r of balance.rows){
+      map.set(r.id_cuenta, (r.deudor||0) - (r.acreedor||0));
+    }
+    const rows = [];
+    for (const c of cuentas){
+      const importe = map.get(c.id_cuenta) || 0;
+      if (!c.rubro && !c.subrubro) continue;
+      rows.push({
+        cod_rubro: c.cod_rubro||'',
+        rubro: c.rubro||'',
+        cod_subrubro: c.cod_subrubro||'',
+        subrubro: c.subrubro||'',
+        importe: importe
+      });
+    }
+    // ordenar por codigos si existen
+    rows.sort((a,b)=> (a.cod_rubro||'').localeCompare(b.cod_rubro||'') || (a.cod_subrubro||'').localeCompare(b.cod_subrubro||''));
+    return rows;
+  }
+  async function actualizar(){
+    const rC = await fetch(`/accounting/api/cuentas`);
+    const cuentas = await rC.json();
+    const rB = await fetch(`/accounting/api/balance`);
+    const balance = await rB.json();
+    const rows = groupByRubro(cuentas, balance);
+    const tbody = document.querySelector('#tabla-esp tbody');
+    tbody.innerHTML = '';
+    for (const r of rows){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.cod_rubro}</td>
+        <td>${r.rubro}</td>
+        <td>${r.cod_subrubro}</td>
+        <td>${r.subrubro}</td>
+        <td style=\"text-align:right\">${r.importe.toFixed(2)}</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+  document.getElementById('btn-actualizar').addEventListener('click', actualizar);
+  actualizar();
+})();
+</script>
+{% endblock %}

@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, g, abort, flash, jsonify
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
-from models import db, Rol, Empresa, EmpresaEmpleado, Asiento, DetalleAsiento, PlanCuenta
+from models import db, Rol, Empresa, EmpresaEmpleado, Asiento, DetalleAsiento, PlanCuenta, ChangeLog
 from datetime import date
 from decimal import Decimal
 
@@ -174,28 +174,51 @@ def api_cuentas_create():
     # Datos de entrada: codigo, nombre, tipo (Activo/Pasivo/Patrimonio/Ingreso/Gasto)
     codigo = (payload.get("codigo") or "").strip().upper()
     nombre = (payload.get("nombre") or "").strip().upper()
-    tipo = (payload.get("tipo") or "").strip()
+    tipo = payload.get("tipo", "").strip()
+    subrubro_req = (payload.get("subrubro") or "").strip()
     if not nombre:
         abort(400, description="Nombre requerido")
-    # Mapear tipo a rubro para soportar heurística sin cambiar esquema
+    # Mapear tipo a rubro para soportar heurística
     tipo_norm = tipo.lower()
     rubro = None
-    if tipo_norm in ("activo",): rubro = "Activo"
-    elif tipo_norm in ("pasivo",): rubro = "Pasivo"
-    elif tipo_norm in ("patrimonio",): rubro = "Patrimonio"
-    elif tipo_norm in ("ingreso","ingresos"): rubro = "Ingresos"
-    elif tipo_norm in ("gasto","gastos"): rubro = "Gastos"
+    # Mapeo desde nuevos dropdowns
+    if tipo_norm == "activo":
+        rubro = "Activo"
+    elif tipo_norm == "pasivo":
+        rubro = "Pasivo"
+    elif tipo_norm in ("patrimonio neto", "patrimonio"):
+        rubro = "Patrimonio"
+    elif tipo_norm in ("cuentas de resultado",):
+        # Diferenciar ingresos vs gastos por subrubro seleccionado
+        sr = subrubro_req.lower()
+        if sr.startswith("ingresos"):
+            rubro = "Ingresos"
+        else:
+            rubro = "Gastos"
+    elif tipo_norm in ("ingreso","ingresos"):
+        rubro = "Ingresos"
+    elif tipo_norm in ("gasto","gastos"):
+        rubro = "Gastos"
     # Crear registro mínimo
     pc = PlanCuenta(
         id_empresa=empresa_id,
         cuenta=nombre,
         cod_rubro=codigo or None,
         rubro=rubro,
-        cod_subrubro=None,
-        subrubro=None,
+        cod_subrubro=(payload.get("cod_subrubro") or None),
+        subrubro=(payload.get("subrubro") or None),
     )
     try:
         db.session.add(pc)
+        db.session.flush()
+        # Auditoría
+        db.session.add(ChangeLog(
+            entidad="cuenta",
+            id_entidad=pc.id_cuenta,
+            accion="create",
+            id_usuario=getattr(g, 'user', None).id if getattr(g, 'user', None) else None,
+            datos=f"{{\"codigo\":\"{codigo}\",\"nombre\":\"{nombre}\",\"tipo\":\"{tipo}\"}}",
+        ))
         db.session.commit()
         return jsonify(dict(
             id_cuenta=pc.id_cuenta,
@@ -213,7 +236,19 @@ def api_cuentas_create():
 @login_required
 def api_asientos_list():
     empresa_id = _empresa_actual_from_request()
-    asientos = Asiento.query.filter_by(id_empresa=empresa_id).order_by(Asiento.fecha.desc(), Asiento.num_asiento.desc()).all()
+    q = Asiento.query.filter_by(id_empresa=empresa_id)
+    # filtros opcionales de fecha
+    desde_s = request.args.get("desde")
+    hasta_s = request.args.get("hasta")
+    from datetime import date as _date
+    try:
+        if desde_s:
+            q = q.filter(Asiento.fecha >= _date.fromisoformat(desde_s))
+        if hasta_s:
+            q = q.filter(Asiento.fecha <= _date.fromisoformat(hasta_s))
+    except Exception:
+        abort(400, description="Formato de fecha inválido. Use YYYY-MM-DD")
+    asientos = q.order_by(Asiento.fecha.desc(), Asiento.num_asiento.desc()).all()
     return jsonify([_asiento_to_dict(a) for a in asientos])
 
 @bp.post("/api/asientos")
@@ -280,6 +315,14 @@ def api_asientos_create():
                 tipo=t,
                 importe=monto,
             ))
+        # Auditoría
+        db.session.add(ChangeLog(
+            entidad="asiento",
+            id_entidad=a.id_asiento,
+            accion="create",
+            id_usuario=g.user.id,
+            datos=f"{{\"fecha\":\"{fecha.isoformat()}\",\"num\":{nuevo_num},\"renglones\":{len(detalles)}}}"
+        ))
         db.session.commit()
         return jsonify(_asiento_to_dict(a)), 201
     except SQLAlchemyError as e:
@@ -298,13 +341,23 @@ def api_mayor():
         abort(404, description="Cuenta no encontrada")
     nb = _normal_side_for(cuenta)
     # Traer detalles de la cuenta por orden
-    dets = (
+    q = (
         db.session.query(DetalleAsiento, Asiento)
         .join(Asiento, DetalleAsiento.id_asiento == Asiento.id_asiento)
         .filter(Asiento.id_empresa == empresa_id, DetalleAsiento.id_cuenta == cuenta_id)
-        .order_by(Asiento.fecha.asc(), Asiento.num_asiento.asc(), DetalleAsiento.id_detalle.asc())
-        .all()
     )
+    # Filtros opcionales de fecha
+    desde_s = request.args.get("desde")
+    hasta_s = request.args.get("hasta")
+    from datetime import date as _date
+    try:
+        if desde_s:
+            q = q.filter(Asiento.fecha >= _date.fromisoformat(desde_s))
+        if hasta_s:
+            q = q.filter(Asiento.fecha <= _date.fromisoformat(hasta_s))
+    except Exception:
+        abort(400, description="Formato de fecha inválido. Use YYYY-MM-DD")
+    dets = q.order_by(Asiento.fecha.asc(), Asiento.num_asiento.asc(), DetalleAsiento.id_detalle.asc()).all()
     saldo = Decimal("0")
     movs = []
     for d, a in dets:
@@ -336,12 +389,23 @@ def api_balance():
     # Precalcular saldos por cuenta
     saldos = {c.id_cuenta: Decimal("0") for c in cuentas}
     nb_map = {c.id_cuenta: _normal_side_for(c) for c in cuentas}
-    dets = (
+    q = (
         db.session.query(DetalleAsiento, Asiento)
         .join(Asiento, DetalleAsiento.id_asiento == Asiento.id_asiento)
         .filter(Asiento.id_empresa == empresa_id)
-        .all()
     )
+    # filtros de fecha opcionales
+    desde_s = request.args.get("desde")
+    hasta_s = request.args.get("hasta")
+    from datetime import date as _date
+    try:
+        if desde_s:
+            q = q.filter(Asiento.fecha >= _date.fromisoformat(desde_s))
+        if hasta_s:
+            q = q.filter(Asiento.fecha <= _date.fromisoformat(hasta_s))
+    except Exception:
+        abort(400, description="Formato de fecha inválido. Use YYYY-MM-DD")
+    dets = q.all()
     for d, a in dets:
         nb = nb_map.get(d.id_cuenta, "D")
         if d.tipo == "debe":
@@ -402,14 +466,18 @@ def api_estados():
     def is_patrimonio(txt):
         return any(k in txt for k in ["patrimonio", "capital"])
 
-    ingresos = Decimal("0"); gastos = Decimal("0"); activo = Decimal("0"); pasivo = Decimal("0"); patrimonio = Decimal("0")
+    ingresos = Decimal("0"); gastos = Decimal("0"); costo_ventas = Decimal("0"); activo = Decimal("0"); pasivo = Decimal("0"); patrimonio = Decimal("0")
     for c in cuentas:
         txt = txt_map[c.id_cuenta]
         saldo = saldos[c.id_cuenta]
         if is_ingreso(txt):
             ingresos += saldo if nb_map[c.id_cuenta] == "H" else -saldo
         elif is_gasto(txt):
-            gastos += saldo if nb_map[c.id_cuenta] == "D" else -saldo
+            # separar costos (cuando el texto contiene 'costo')
+            val = (saldo if nb_map[c.id_cuenta] == "D" else -saldo)
+            gastos += val
+            if "costo" in txt:
+                costo_ventas += val
         elif is_activo(txt):
             activo += saldo if nb_map[c.id_cuenta] == "D" else -saldo
         elif is_pasivo(txt):
@@ -418,6 +486,82 @@ def api_estados():
             patrimonio += saldo if nb_map[c.id_cuenta] == "H" else -saldo
     utilidad = ingresos + gastos  # gastos negativo si mapeo es correcto
     return jsonify(dict(
-        er=dict(ingresos=float(ingresos), gastos=float(-gastos), utilidad=float(utilidad)),
+        er=dict(ingresos=float(ingresos), ventas=float(ingresos), gastos=float(-gastos), costo_ventas=float(-costo_ventas), utilidad=float(utilidad)),
         bg=dict(activo=float(activo), pasivo=float(pasivo), patrimonio=float(patrimonio), pasivo_patrimonio_utilidad=float(pasivo + patrimonio + utilidad)),
     ))
+
+@bp.get("/api/indices")
+@login_required
+def api_indices():
+    empresa_id = _empresa_actual_from_request()
+    cuentas = PlanCuenta.query.filter_by(id_empresa=empresa_id).all()
+    nb_map = {c.id_cuenta: _normal_side_for(c) for c in cuentas}
+    txt_map = {c.id_cuenta: (" ".join(filter(None, [c.rubro, c.subrubro])).lower()) for c in cuentas}
+    from decimal import Decimal
+    saldos = {c.id_cuenta: Decimal("0") for c in cuentas}
+    dets = (
+        db.session.query(DetalleAsiento, Asiento)
+        .join(Asiento, DetalleAsiento.id_asiento == Asiento.id_asiento)
+        .filter(Asiento.id_empresa == empresa_id)
+        .all()
+    )
+    for d, a in dets:
+        nb = nb_map.get(d.id_cuenta, "D")
+        if d.tipo == "debe":
+            saldos[d.id_cuenta] += (d.importe if nb == "D" else -d.importe)
+        else:
+            saldos[d.id_cuenta] += (d.importe if nb == "H" else -d.importe)
+    # Clasificaciones
+    def is_activo_corriente(txt):
+        keys = ["corriente", "caja", "banco", "bancos", "efectivo", "clientes", "inventario", "existencias"]
+        return any(k in txt for k in keys)
+    def is_pasivo_corriente(txt):
+        keys = ["corriente", "proveedores", "deudas", "obligaciones"]
+        return any(k in txt for k in keys)
+    def is_activo(txt):
+        return any(k in txt for k in ["activo", "caja", "banco", "bancos", "clientes", "inventario", "existencias"])
+    def is_pasivo(txt):
+        return any(k in txt for k in ["pasivo", "proveedores", "deudas", "obligaciones"])
+    def is_patrimonio(txt):
+        return any(k in txt for k in ["patrimonio", "capital"]) 
+    def is_ingreso(txt):
+        return any(k in txt for k in ["ingreso", "ventas", "ingresos"]) 
+    def is_gasto(txt):
+        return any(k in txt for k in ["gasto", "costos", "costo"]) 
+
+    ac = Decimal("0"); pc = Decimal("0"); a_tot = Decimal("0"); p_tot = Decimal("0"); pat = Decimal("0"); ventas = Decimal("0"); gastos = Decimal("0"); costo_ventas = Decimal("0")
+    for c in cuentas:
+        txt = txt_map[c.id_cuenta]
+        saldo = saldos[c.id_cuenta]
+        if is_activo(txt):
+            a_tot += saldo if nb_map[c.id_cuenta] == "D" else -saldo
+        if is_pasivo(txt):
+            p_tot += saldo if nb_map[c.id_cuenta] == "H" else -saldo
+        if is_patrimonio(txt):
+            pat += saldo if nb_map[c.id_cuenta] == "H" else -saldo
+        if is_activo_corriente(txt):
+            ac += saldo if nb_map[c.id_cuenta] == "D" else -saldo
+        if is_pasivo_corriente(txt):
+            pc += saldo if nb_map[c.id_cuenta] == "H" else -saldo
+        if is_ingreso(txt):
+            ventas += saldo if nb_map[c.id_cuenta] == "H" else -saldo
+        if is_gasto(txt):
+            val = (saldo if nb_map[c.id_cuenta] == "D" else -saldo)
+            gastos += val
+            if "costo" in txt:
+                costo_ventas += val
+    utilidad = ventas + gastos
+    def safe_div(n, d):
+        try:
+            return float(n) / float(d) if float(d) != 0.0 else None
+        except Exception:
+            return None
+    data = dict(
+        liquidez=safe_div(ac, pc),
+        solvencia=safe_div(a_tot, p_tot),
+        endeudamiento=safe_div(p_tot, pat),
+        costo_ventas=safe_div(costo_ventas, ventas),
+        roi=safe_div(utilidad, pat),
+        componentes=dict(activo_corriente=float(ac), pasivo_corriente=float(pc), activo=float(a_tot), pasivo=float(p_tot), patrimonio=float(pat), ventas=float(ventas), utilidad=float(utilidad), costo_ventas=float(costo_ventas))
+    )
+    return jsonify(data)

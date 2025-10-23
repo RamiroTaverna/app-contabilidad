@@ -12,9 +12,6 @@
     const secciones = [
       {id:'sec-cuentas', label:'Plan de Cuentas'},
       {id:'sec-diario', label:'Libro Diario'},
-      {id:'sec-mayor', label:'Libro Mayor'},
-      {id:'sec-balance', label:'Balance de Comprobación'},
-      {id:'sec-estados', label:'Estados Financieros'},
     ];
     const tabs = $('#tabs');
     tabs.innerHTML = '';
@@ -29,12 +26,31 @@
 
   const fmt = (n)=> (Number(n)||0).toLocaleString('es-AR',{minimumFractionDigits:2, maximumFractionDigits:2});
   const parseNum = (v)=>{ const n = Number(String(v).replace(/\./g,'').replace(',','.')); return isNaN(n)?0:n; };
+  const SUBRUBROS = {
+    'Activo': ['Activo Corriente', 'Activo No Corriente', 'Otros Activos'],
+    'Pasivo': ['Pasivo Corriente', 'Pasivo No Corriente', 'Otros Pasivos'],
+    'Patrimonio Neto': ['Capital', 'Resultados Acumulados', 'Resultados del Ejercicio'],
+    'Cuentas de Resultado': [
+      'Ingresos (o Ventas)',
+      'Egresos (o Costos)',
+      'Gastos de Administración',
+      'Gastos de Comercialización',
+      'Gastos Financieros y Otros',
+      'Otros Ingresos y Egresos'
+    ]
+  };
+  function fillSubrubros(){
+    const rubroSel = $('#accRubro'); const subSel = $('#accSubName'); if(!rubroSel || !subSel) return;
+    const t = rubroSel.value || 'Activo';
+    const opts = SUBRUBROS[t] || [];
+    subSel.innerHTML = '<option value="">— Elegir —</option>' + opts.map(s=>`<option value="${s}">${s}</option>`).join('');
+  }
 
   function renderCuentas(){
     const tb = $('#tablaCuentas tbody'); if(!tb) return; tb.innerHTML = '';
     cuentas.forEach(acc=>{
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td class="monospace">${acc.cod_rubro || ''}</td><td>${acc.cuenta}</td><td>${acc.rubro || ''}</td>
+      tr.innerHTML = `<td class="monospace">${acc.cod_rubro || ''}</td><td>${acc.cuenta}</td><td>${acc.rubro || ''}</td><td>${acc.subrubro || ''}</td>
         <td></td>`;
       tb.appendChild(tr);
     });
@@ -109,7 +125,7 @@
     const bgAct=$('#bgAct'), bgPP=$('#bgPP'); if(bgAct) bgAct.textContent = fmt(data.bg.activo); if(bgPP) bgPP.textContent = fmt(data.bg.pasivo_patrimonio_utilidad);
   }
 
-  function renderTodo(){ renderMayor(); renderTrial(); renderEstados(); }
+  function renderTodo(){ /* trasladado a Reportes */ }
 
   function bindEvents(){
     const addAcc = $('#addAcc');
@@ -117,26 +133,30 @@
       addAcc.onclick = async ()=>{
         const codigo = $('#accCode').value.trim();
         const nombre = $('#accName').value.trim();
-        const tipo = $('#accType').value;
+        const tipo = $('#accRubro').value;
+        const cod_subrubro = $('#accSubCode')?.value.trim() || '';
+        const subrubro = $('#accSubName')?.value || '';
         if(!nombre) return alert('Completá código y nombre');
         try{
           const payload = { codigo, nombre, tipo };
+          if (subrubro) payload.subrubro = subrubro;
+          if (cod_subrubro) payload.cod_subrubro = cod_subrubro;
           if(empresa) payload.empresa = parseInt(empresa,10);
           const res = await fetch('/accounting/api/cuentas', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body: JSON.stringify(payload) });
           if(!res.ok){ const t = await res.text(); throw new Error(t); }
-          $('#accCode').value=''; $('#accName').value='';
+          $('#accCode').value=''; $('#accName').value=''; if($('#accSubCode')) $('#accSubCode').value=''; if($('#accSubName')) $('#accSubName').selectedIndex=0;
           await loadCuentas(); renderCuentas();
         }catch(err){ alert('Error al crear cuenta: '+err.message); }
       };
     }
+    const rubroSel = $('#accRubro'); if(rubroSel){ rubroSel.addEventListener('change', fillSubrubros); fillSubrubros(); }
     const addLinea = $('#addLinea'); if(addLinea){ addLinea.onclick = ()=>{ if(!cuentas.length) return alert('Agregá cuentas primero'); tempLineas.unshift({id_cuenta:cuentas[0].id_cuenta, debe:0, haber:0}); renderEntrada(); }; }
     const tablaEntrada = $('#tablaEntrada'); if(tablaEntrada){
       tablaEntrada.addEventListener('input', (e)=>{ const row = e.target.closest('tr'); if(!row) return; const idx = Array.from(row.parentNode.children).indexOf(row); tempLineas[idx].id_cuenta = parseInt(row.querySelector('.account').value,10); tempLineas[idx].debe = parseNum(row.querySelector('.debe').value); tempLineas[idx].haber = parseNum(row.querySelector('.haber').value); if(tempLineas[idx].debe>0) { row.querySelector('.haber').value = 0; tempLineas[idx].haber=0; } if(tempLineas[idx].haber>0){ row.querySelector('.debe').value = 0; tempLineas[idx].debe=0; } totalesEntrada(); });
       tablaEntrada.addEventListener('click', (e)=>{ if(e.target.classList.contains('del')){ const row = e.target.closest('tr'); const idx = Array.from(row.parentNode.children).indexOf(row); tempLineas.splice(idx,1); renderEntrada(); } });
     }
     const addAsiento = $('#addAsiento'); if(addAsiento){ addAsiento.onclick = async ()=>{ const fecha = $('#jeDate').value || new Date().toISOString().slice(0,10); const concepto = $('#jeConcepto').value.trim() || 'Sin concepto'; const rows = $$('#tablaEntrada tbody tr'); if(rows.length<2) return alert('Agregá al menos dos líneas'); let d=0,h=0; const renglones = []; for(const r of rows){ const id_cuenta = parseInt(r.querySelector('.account').value,10); const debe = parseNum(r.querySelector('.debe').value); const haber = parseNum(r.querySelector('.haber').value); if(debe===0 && haber===0) continue; const tipo = debe>0? 'debe':'haber'; const importe = debe>0? debe:haber; renglones.push({id_cuenta, tipo, importe}); d+=debe; h+=haber; } if(renglones.length<2) return alert('Completá importes'); if(Math.abs(d-h) > 0.005) return alert('El asiento no está cuadrado'); try{ const payload = { fecha, doc: '', leyenda: concepto, renglones }; if(empresa) payload.empresa = parseInt(empresa,10); const res = await fetch('/accounting/api/asientos', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body: JSON.stringify(payload) }); if(!res.ok){ const t = await res.text(); throw new Error(t); } await loadAsientos(); tempLineas = []; $('#jeConcepto').value=''; renderEntrada(); renderDiario(); renderTodo(); }catch(err){ alert('Error al guardar: '+err.message); } }; }
-    const selMayor = $('#selMayor'); if(selMayor){ selMayor.onchange = renderMayor; }
-    const repostBtn = $('#repostBtn'); if(repostBtn){ repostBtn.onclick = renderMayor; }
+    // Mayor/Balance/Estados trasladados a Reportes
   }
 
   async function loadCuentas(){ const url = empresa? `/accounting/api/cuentas?empresa=${empresa}` : `/accounting/api/cuentas`; const res = await fetch(url, { credentials: 'same-origin' }); cuentas = res.ok ? await res.json() : []; }

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Libro Diario</title>
+  <style>
+    body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 12px; }
+    h1 { font-size: 18px; margin: 0 0 10px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #999; padding: 6px 8px; }
+    th { background: #eee; }
+    .right { text-align: right; }
+    .muted { color: #666; font-size: 11px; }
+    .asiento { margin: 14px 0; }
+  </style>
+</head>
+<body>
+  <h1>Libro Diario</h1>
+  <div class="muted">Generado automáticamente</div>
+  {% for a in diario %}
+    <div class="asiento">
+      <div><strong>Fecha:</strong> {{ a.fecha }} &nbsp; <strong>N°:</strong> {{ a.num }} &nbsp; <strong>Concepto:</strong> {{ a.leyenda }}</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 60%">Cuenta</th>
+            <th style="width: 20%">Debe</th>
+            <th style="width: 20%">Haber</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in a.detalles %}
+          <tr>
+            <td>{{ d.cuenta }}</td>
+            <td class="right">{{ '%.2f'|format(d.importe) if d.tipo=='debe' else '' }}</td>
+            <td class="right">{{ '%.2f'|format(d.importe) if d.tipo=='haber' else '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+</body>
+</html>

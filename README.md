@@ -84,3 +84,50 @@ python app.py
 
 - `journal_list.html` y páginas relacionadas quedan como referencia, pero la navegación estándar ya usa `mini.html`.
 - Se recomienda progresivamente migrar la lógica embebida en `mini.html` a archivos en `static/` y a APIs REST para abandonar `localStorage`.
+
+---
+
+## Funcionalidades actuales
+
+- **Mini Contable** (`/accounting/mini`)
+  - Plan de Cuentas (alta con heurística de rubro) y Libro Diario (validación Debe=Haber).
+- **Reportes** (`/reports/`)
+  - Panel con pestañas (iframes) y autoaltura vía `postMessage`.
+  - Libro Diario: filtros `desde/hasta`, exportación a PDF real (xhtml2pdf).
+  - Libro Mayor: filtros `desde/hasta`, carga por query y por `postMessage` (drill-down).
+  - Balance de Comprobación: totales y drill-down a Mayor al hacer click en filas.
+  - Estado Patrimonial: sin selector de empresa (dueño/empleado usan su empresa).
+  - Gráficos: dos gráficos (rubros/subrubros), compactos con leyendas reducidas.
+  - Indicadores (Índices): Liquidez, Solvencia, Endeudamiento, Costo/Ventas, ROI; KPIs con semáforo y filtros de fecha.
+- **Seguridad y roles**
+  - `login_required` en módulos; Reportes restringido a dueño/empleado.
+  - Resolución de empresa por rol mediante `_empresa_actual_from_request()`.
+- **Auditoría (bitácora)**
+  - Modelo `ChangeLog` registra creación de cuentas y asientos con usuario, timestamp y datos.
+
+## Endpoints REST relevantes
+
+- `GET /accounting/api/cuentas` – listar plan de cuentas.
+- `POST /accounting/api/cuentas` – crear cuenta (auditable).
+- `GET /accounting/api/asientos?desde&hasta` – listar asientos con detalles.
+- `POST /accounting/api/asientos` – crear asiento (auditable), valida Debe=Haber>0.
+- `GET /accounting/api/mayor?cuenta=ID&desde&hasta` – mayor de una cuenta.
+- `GET /accounting/api/balance?desde&hasta` – balance de comprobación.
+- `GET /accounting/api/estados` – resultados y balance general (incluye ventas y costo_ventas).
+- `GET /accounting/api/indices?desde&hasta` – indicadores calculados.
+
+## Exportaciones
+
+- `GET /reports/diario/export?desde&hasta` – PDF del Libro Diario con xhtml2pdf (fallback a HTML si falta dependencia).
+
+## Drill-down entre reportes
+
+- `reports/balance.html` emite `postMessage({type:'openMayor', cuenta})`.
+- `reports/index.html` cambia al tab “Mayor” y reenvía el mensaje al iframe.
+- `reports/mayor.html` escucha y carga cuenta/rango automáticamente.
+
+## Pendientes sugeridos
+
+- Registrar auditoría también en ediciones/borrados (actualmente en altas).
+- Agregar tests de roles (dueño/empleado/docente) y de bitácora (`change_log`).
+- Exportar CSV/Excel en Balance/Estado/Índices.

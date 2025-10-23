@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <div class="title">
+    <h2>Libro Mayor</h2>
+    <div class="actions">
+      <a class="btn ghost" href="{{ url_for('accounting.mini') }}">Editar en Mini Contable</a>
+    </div>
+  </div>
+  <div style="padding:12px 16px; display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+    <div>
+      <label>Cuenta</label>
+      <select id="cuentaSel" style="min-width:320px"></select>
+    </div>
+    <div>
+      <label>Desde</label>
+      <input type="date" id="desde">
+    </div>
+    <div>
+      <label>Hasta</label>
+      <input type="date" id="hasta">
+    </div>
+    <div>
+      <button id="btn-cargar" class="btn">Cargar</button>
+    </div>
+  </div>
+  <div style="max-height:320px; overflow:auto">
+    <table id="tabla-mayor">
+      <thead>
+        <tr>
+          <th style="width:110px">Fecha</th>
+          <th>Concepto</th>
+          <th style="width:100px">Debe</th>
+          <th style="width:100px">Haber</th>
+          <th style="width:120px">Saldo</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+<script>
+(async function(){
+  // Cargar cuentas
+  const rC = await fetch(`/accounting/api/cuentas`);
+  const cuentas = await rC.json();
+  const sel = document.getElementById('cuentaSel');
+  sel.innerHTML = '<option value="">Seleccione...</option>' + cuentas.map(c=>`<option value="${c.id_cuenta}">${c.cuenta}</option>`).join('');
+  async function cargar(){
+    const id = sel.value; if(!id) return;
+    const qs = new URLSearchParams(); qs.set('cuenta', id);
+    const d = document.getElementById('desde').value; if(d) qs.set('desde', d);
+    const h = document.getElementById('hasta').value; if(h) qs.set('hasta', h);
+    const r = await fetch(`/accounting/api/mayor?${qs.toString()}`);
+    const data = await r.json();
+    const tbody = document.querySelector('#tabla-mayor tbody');
+    tbody.innerHTML = '';
+    for (const m of (data.movimientos||[])){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${m.fecha}</td>
+        <td>${m.concepto||''}</td>
+        <td style="text-align:right">${m.debe? m.debe.toFixed(2): ''}</td>
+        <td style="text-align:right">${m.haber? m.haber.toFixed(2): ''}</td>
+        <td style="text-align:right">${m.saldo.toFixed(2)}</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+  document.getElementById('btn-cargar').addEventListener('click', cargar);
+  // Autoload por query param ?cuenta=&desde=&hasta=
+  (function(){
+    const p = new URLSearchParams(location.search);
+    const c = p.get('cuenta'); const d = p.get('desde'); const h = p.get('hasta');
+    if(c){ sel.value = c; if(d) document.getElementById('desde').value = d; if(h) document.getElementById('hasta').value = h; cargar(); }
+  })();
+  // Drill-down por postMessage
+  window.addEventListener('message', (ev)=>{
+    try{
+      const msg = ev.data || {}; if(msg.type !== 'openMayor') return;
+      if(msg.cuenta){ sel.value = String(msg.cuenta); }
+      if(msg.desde){ document.getElementById('desde').value = msg.desde; }
+      if(msg.hasta){ document.getElementById('hasta').value = msg.hasta; }
+      cargar();
+    }catch(e){}
+  });
+})();
+</script>
+{% endblock %}

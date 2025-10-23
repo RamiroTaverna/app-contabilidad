@@ -6,7 +6,7 @@
   <header class="msc-header">
     <div class="msc-wrap">
       <h1 class="msc-title">Mini Sistema Contable</h1>
-      <div class="msc-sub">Libro Diario → Libro Mayor → Balance de Comprobación → Estados Financieros (Resultados & Balance General).</div>
+      <div class="msc-sub">Libro Diario</div>
       <nav id="tabs"></nav>
       {% if empresas is not none %}
       <form method="get" action="{{ url_for('accounting.mini') }}" style="margin-top:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap">
@@ -46,14 +46,21 @@
           <input id="accName" placeholder="Caja" />
         </div>
         <div>
-          <label>Tipo</label>
-          <select id="accType">
+          <label>Rubro</label>
+          <select id="accRubro">
             <option>Activo</option>
             <option>Pasivo</option>
-            <option>Patrimonio</option>
-            <option>Ingreso</option>
-            <option>Gasto</option>
+            <option>Patrimonio Neto</option>
+            <option>Cuentas de Resultado</option>
           </select>
+        </div>
+        <div>
+          <label>Subrubro</label>
+          <select id="accSubName"></select>
+        </div>
+        <div>
+          <label>Cód. Subrubro</label>
+          <input id="accSubCode" placeholder="1101.01" />
         </div>
         <div style="align-self:end">
           <button class="btn primary" id="addAcc">Agregar cuenta</button>
@@ -62,7 +69,7 @@
       <div style="padding:0 0 12px 0;max-height:260px;overflow:auto">
         <table id="tablaCuentas">
           <thead>
-            <tr><th style="width:120px">Código</th><th>Nombre</th><th style="width:140px">Tipo</th><th style="width:90px">Acciones</th></tr>
+            <tr><th style="width:120px">Código</th><th>Nombre</th><th style="width:140px">Tipo</th><th style="width:180px">Subrubro</th><th style="width:90px">Acciones</th></tr>
           </thead>
           <tbody></tbody>
         </table>
@@ -127,91 +134,7 @@
       </div>
     </section>
 
-    <section id="sec-mayor">
-      <div class="title">
-        <h2>Libro Mayor</h2>
-        <div class="actions">
-          <span class="pill" id="saldoInfo">—</span>
-          <button class="btn" id="repostBtn">Re-postear</button>
-        </div>
-      </div>
-      <div style="padding:12px 16px">
-        <div class="hint">Selecciona una cuenta para ver su mayor:</div>
-        <select id="selMayor" style="margin:8px 0;max-width:420px"></select>
-      </div>
-      <div style="max-height:280px;overflow:auto">
-        <table id="tablaMayor">
-          <thead>
-            <tr>
-              <th style="width:110px">Fecha</th>
-              <th>Concepto</th>
-              <th style="width:100px">Debe</th>
-              <th style="width:100px">Haber</th>
-              <th style="width:120px">Saldo</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section id="sec-balance">
-      <div class="title">
-        <h2>Balance de Comprobación</h2>
-        <div class="actions">
-          <span class="pill" id="chkBalance">—</span>
-        </div>
-      </div>
-      <div style="max-height:480px;overflow:auto">
-        <table id="tablaTrial">
-          <thead>
-            <tr>
-              <th style="width:120px">Código</th>
-              <th>Cuenta</th>
-              <th style="width:120px">Saldo Deudor</th>
-              <th style="width:120px">Saldo Acreedor</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-          <tfoot>
-            <tr>
-              <td colspan="2">Totales</td>
-              <td id="trialDebe" class="monospace">0.00</td>
-              <td id="trialHaber" class="monospace">0.00</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </section>
-
-    <section id="sec-estados">
-      <div class="title">
-        <h2>Estados Financieros</h2>
-        <div class="actions"></div>
-      </div>
-      <div class="grid two" style="padding:14px 16px">
-        <div>
-          <h3>Estado de Resultados</h3>
-          <table id="tablaER">
-            <tbody></tbody>
-            <tfoot>
-              <tr><td><strong>Utilidad del período</strong></td><td class="monospace" id="erUtil">0.00</td></tr>
-            </tfoot>
-          </table>
-        </div>
-        <div>
-          <h3>Balance General (Clasificado)</h3>
-          <table id="tablaBG">
-            <tbody></tbody>
-            <tfoot>
-              <tr><td><strong>Activo</strong></td><td class="monospace" id="bgAct">0.00</td></tr>
-              <tr><td><strong>Pasivo + Patrimonio</strong></td><td class="monospace" id="bgPP">0.00</td></tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-      <div class="footer">La utilidad del período se suma al Patrimonio en el Balance General.</div>
-    </section>
+    
   </main>
 </div>
 <script type="module" src="{{ url_for('static', filename='accounting/api.js') }}"></script>

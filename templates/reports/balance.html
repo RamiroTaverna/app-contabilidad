@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Balance de Comprobación</h1>
+<table class="table" id="tabla-balance">
+  <thead>
+    <tr>
+      <th>Código</th>
+      <th>Cuenta</th>
+      <th style="text-align:right">Deudor</th>
+      <th style="text-align:right">Acreedor</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+  <tfoot>
+    <tr>
+      <th colspan="2" style="text-align:right">Totales</th>
+      <th style="text-align:right" id="tot-debe">0.00</th>
+      <th style="text-align:right" id="tot-haber">0.00</th>
+    </tr>
+  </tfoot>
+</table>
+<script>
+(async function(){
+  const res = await fetch('/accounting/api/balance');
+  const data = await res.json();
+  const tbody = document.querySelector('#tabla-balance tbody');
+  tbody.innerHTML = '';
+  for (const r of (data.rows||[])){
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.dataset.id_cuenta = r.id_cuenta;
+    tr.title = 'Ver mayor de esta cuenta';
+    tr.innerHTML = `
+      <td>${r.cod_rubro||''}</td>
+      <td>${r.cuenta||''}</td>
+      <td style="text-align:right">${(r.deudor||0).toFixed(2)}</td>
+      <td style="text-align:right">${(r.acreedor||0).toFixed(2)}</td>`;
+    tbody.appendChild(tr);
+  }
+  document.getElementById('tot-debe').textContent = (data.total_debe||0).toFixed(2);
+  document.getElementById('tot-haber').textContent = (data.total_haber||0).toFixed(2);
+  tbody.addEventListener('click', (e)=>{
+    const row = e.target.closest('tr'); if(!row) return;
+    const id = row.dataset.id_cuenta; if(!id) return;
+    // enviar mensaje al panel padre para abrir Mayor
+    try{ window.parent.postMessage({ type:'openMayor', cuenta: id }, '*'); }catch(err){}
+  });
+})();
+</script>
+{% endblock %}

@@ -127,3 +127,20 @@ class DetalleAsiento(db.Model):
 
     asiento = db.relationship("Asiento", back_populates="detalles")
     cuenta_ref = db.relationship("PlanCuenta")
+
+# --------- Auditoría ---------
+class ChangeLog(db.Model):
+    __tablename__ = "change_log"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    entidad = db.Column(db.String(50), nullable=False)  # e.g., 'asiento', 'cuenta'
+    id_entidad = db.Column(db.Integer, nullable=False)
+    accion = db.Column(db.String(20), nullable=False)   # 'create', 'update', 'delete'
+    id_usuario = db.Column(db.Integer, db.ForeignKey("usuarios.id"))
+    ts = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+    datos = db.Column(db.Text)  # JSON (string) con cambios relevantes
+
+    usuario = relationship("Usuario")
+
+    def __repr__(self):
+        return f"<ChangeLog {self.entidad}#{self.id_entidad} {self.accion} por {self.id_usuario}>"
