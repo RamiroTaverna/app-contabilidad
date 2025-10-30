@@ -1,9 +1,9 @@
 # accounting.py
 from flask import Blueprint, render_template, request, redirect, url_for, g, abort, flash, jsonify
-from sqlalchemy import func
+from sqlalchemy import func, case, and_, or_
 from sqlalchemy.exc import SQLAlchemyError
-from models import db, Rol, Empresa, EmpresaEmpleado, Asiento, DetalleAsiento, PlanCuenta, ChangeLog
-from datetime import date
+from models import db, Rol, Empresa, EmpresaEmpleado, Asiento, DetalleAsiento, PlanCuenta, ChangeLog, EstadoResultado
+from datetime import date, datetime
 from decimal import Decimal
 
 bp = Blueprint("accounting", __name__, url_prefix="/accounting")
@@ -669,6 +669,163 @@ def api_estados():
         er=dict(ingresos=float(ingresos), ventas=float(ingresos), gastos=float(-gastos), costo_ventas=float(-costo_ventas), utilidad=float(utilidad)),
         bg=dict(activo=float(activo), pasivo=float(pasivo), patrimonio=float(patrimonio), pasivo_patrimonio_utilidad=float(pasivo + patrimonio + utilidad)),
     ))
+
+@bp.get("/api/estado-resultados")
+@login_required
+def api_estado_resultados():
+    """Endpoint para generar el Estado de Resultados."""
+    empresa_id = _empresa_actual_from_request()
+    fecha_desde = request.args.get('fecha_desde')
+    fecha_hasta = request.args.get('fecha_hasta')
+    
+    try:
+        # Validar fechas
+        if not fecha_desde or not fecha_hasta:
+            # Si no se especifican fechas, usar el mes actual
+            hoy = date.today()
+            primer_dia = hoy.replace(day=1)
+            fecha_desde = primer_dia.strftime('%Y-%m-%d')
+            fecha_hasta = hoy.strftime('%Y-%m-%d')
+        else:
+            # Validar formato de fechas
+            datetime.strptime(fecha_desde, '%Y-%m-%d')
+            datetime.strptime(fecha_hasta, '%Y-%m-%d')
+            
+        # Obtener cuentas de ingresos (rubro 4) y gastos (rubro 5)
+        cuentas = PlanCuenta.query.filter(
+            PlanCuenta.id_empresa == empresa_id,
+            PlanCuenta.cod_rubro.in_(['4', '5'])
+        ).all()
+        
+        # Obtener movimientos en el rango de fechas
+        movimientos = db.session.query(
+            DetalleAsiento,
+            Asiento,
+            PlanCuenta
+        ).join(
+            Asiento, DetalleAsiento.id_asiento == Asiento.id_asiento
+        ).join(
+            PlanCuenta, DetalleAsiento.id_cuenta == PlanCuenta.id_cuenta
+        ).filter(
+            Asiento.id_empresa == empresa_id,
+            Asiento.fecha.between(fecha_desde, fecha_hasta),
+            PlanCuenta.cod_rubro.in_(['4', '5'])
+        ).all()
+        
+        # Procesar movimientos
+        ingresos = []
+        gastos = []
+        total_ingresos = Decimal('0')
+        total_gastos = Decimal('0')
+        
+        # Agrupar por cuenta
+        cuentas_agrupadas = {}
+        for detalle, asiento, cuenta in movimientos:
+            if cuenta.id_cuenta not in cuentas_agrupadas:
+                cuentas_agrupadas[cuenta.id_cuenta] = {
+                    'cuenta': cuenta.cuenta,
+                    'importe': Decimal('0'),
+                    'rubro': cuenta.cod_rubro
+                }
+            
+            # Sumar al debe o haber según corresponda
+            if detalle.tipo == 'debe':
+                cuentas_agrupadas[cuenta.id_cuenta]['importe'] += detalle.importe
+            else:
+                cuentas_agrupadas[cuenta.id_cuenta]['importe'] -= detalle.importe
+        
+        # Separar en ingresos (rubro 4) y gastos (rubro 5)
+        for cuenta_id, datos in cuentas_agrupadas.items():
+            if datos['rubro'] == '4':  # Ingresos
+                if datos['importe'] > 0:  # Solo incluir si es positivo (ingreso)
+                    ingresos.append({
+                        'cuenta': datos['cuenta'],
+                        'importe': float(datos['importe'])
+                    })
+                    total_ingresos += datos['importe']
+            elif datos['rubro'] == '5':  # Gastos
+                if datos['importe'] < 0:  # Invertir el signo para mostrar positivo
+                    gastos.append({
+                        'cuenta': datos['cuenta'],
+                        'importe': float(abs(datos['importe']))
+                    })
+                    total_gastos += abs(datos['importe'])
+        
+        # Ordenar por monto descendente
+        ingresos.sort(key=lambda x: x['importe'], reverse=True)
+        gastos.sort(key=lambda x: x['importe'], reverse=True)
+        
+        # Calcular resultado del ejercicio
+        resultado_ejercicio = total_ingresos - total_gastos
+        
+        # Guardar en la base de datos para futuras referencias
+        try:
+            # Primero, marcar como inactivos los registros existentes para este período
+            EstadoResultado.query.filter_by(
+                id_empresa=empresa_id,
+                fecha_desde=fecha_desde,
+                fecha_hasta=fecha_hasta
+            ).update({'activo': False})
+            
+            # Guardar ingresos
+            for ingreso in ingresos:
+                er = EstadoResultado(
+                    id_empresa=empresa_id,
+                    cod_rubro='4',
+                    rubro='Ingresos',
+                    cod_subrubro='',
+                    subrubro='',
+                    cuenta=ingreso['cuenta'],
+                    saldo=ingreso['importe'],
+                    fecha_desde=fecha_desde,
+                    fecha_hasta=fecha_hasta,
+                    fecha_actualizacion=datetime.now(),
+                    activo=True
+                )
+                db.session.add(er)
+            
+            # Guardar gastos
+            for gasto in gastos:
+                er = EstadoResultado(
+                    id_empresa=empresa_id,
+                    cod_rubro='5',
+                    rubro='Gastos',
+                    cod_subrubro='',
+                    subrubro='',
+                    cuenta=gasto['cuenta'],
+                    saldo=gasto['importe'],
+                    fecha_desde=fecha_desde,
+                    fecha_hasta=fecha_hasta,
+                    fecha_actualizacion=datetime.now(),
+                    activo=True
+                )
+                db.session.add(er)
+            
+            db.session.commit()
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error al guardar en la base de datos: {str(e)}")
+            # Continuar aunque falle el guardado en la base de datos
+        
+        return jsonify({
+            'success': True,
+            'fecha_desde': fecha_desde,
+            'fecha_hasta': fecha_hasta,
+            'ingresos': ingresos,
+            'gastos': gastos,
+            'total_ingresos': float(total_ingresos),
+            'total_gastos': float(total_gastos),
+            'resultado_ejercicio': float(resultado_ejercicio),
+            'es_utilidad': resultado_ejercicio >= 0
+        })
+        
+    except Exception as e:
+        print(f"Error en api_estado_resultados: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
 
 @bp.get("/api/indices")
 @login_required

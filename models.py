@@ -128,6 +128,33 @@ class DetalleAsiento(db.Model):
     asiento = db.relationship("Asiento", back_populates="detalles")
     cuenta_ref = db.relationship("PlanCuenta")
 
+# --------- Estados Financieros ---------
+class EstadoResultado(db.Model):
+    __tablename__ = "estado_resultados"
+
+    id_resultado = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id_empresa = db.Column(db.Integer, db.ForeignKey("empresas.id_empresa", ondelete="CASCADE"), nullable=False)
+    cod_rubro = db.Column(db.String(50))
+    rubro = db.Column(db.String(100))
+    cod_subrubro = db.Column(db.String(50))
+    subrubro = db.Column(db.String(100))
+    cuenta = db.Column(db.String(100))
+    saldo = db.Column(db.Numeric(12, 2), default=0.00)
+    fecha_desde = db.Column(db.Date, nullable=False)
+    fecha_hasta = db.Column(db.Date, nullable=False)
+    fecha_actualizacion = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+    
+    # Relación con la empresa
+    empresa = db.relationship("Empresa", backref=db.backref("estados_resultados", cascade="all, delete-orphan"))
+    
+    __table_args__ = (
+        db.UniqueConstraint('id_empresa', 'cod_rubro', 'cod_subrubro', 'cuenta', 'fecha_desde', 'fecha_hasta', 
+                           name='uq_estado_resultado'),
+    )
+    
+    def __repr__(self):
+        return f"<EstadoResultado {self.rubro} - {self.subrubro} - {self.cuenta}: {self.saldo}>"
+
 # --------- Auditoría ---------
 class ChangeLog(db.Model):
     __tablename__ = "change_log"

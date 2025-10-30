@@ -12,6 +12,7 @@
     const secciones = [
       {id:'sec-cuentas', label:'Plan de Cuentas'},
       {id:'sec-diario', label:'Libro Diario'},
+      {id:'sec-estado-resultados', label:'Estado de Resultados'},
     ];
     const tabs = $('#tabs');
     tabs.innerHTML = '';
@@ -66,6 +67,20 @@
       <td><input class="debe" type="number" min="0" step="0.01" value="${l?l.debe:0}" /></td>
       <td><input class="haber" type="number" min="0" step="0.01" value="${l?l.haber:0}" /></td>
       <td><button class="btn ghost del">Quitar</button></td>`;
+    
+    // Agregar manejadores de eventos para limpiar el valor '0' al enfocar
+    const debeInput = tr.querySelector('.debe');
+    const haberInput = tr.querySelector('.haber');
+    
+    const handleFocus = (e) => {
+      if (parseFloat(e.target.value) === 0) {
+        e.target.value = '';
+      }
+    };
+    
+    debeInput.addEventListener('focus', handleFocus);
+    haberInput.addEventListener('focus', handleFocus);
+    
     return tr;
   }
 
@@ -260,6 +275,89 @@
 
   function renderTodo(){ /* trasladado a Reportes */ }
 
+  async function renderEstadoResultados() {
+    if (!$('#sec-estado-resultados')) return;
+    
+    const fechaDesde = $('#erFechaDesde').value || new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+    const fechaHasta = $('#erFechaHasta').value || new Date().toISOString().split('T')[0];
+    
+    if (!empresa) {
+      alert('Por favor seleccione una empresa primero');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/accounting/api/estado-resultados?empresa=${empresa}&fecha_desde=${fechaDesde}&fecha_hasta=${fechaHasta}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
+      }
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al obtener el estado de resultados');
+      }
+      
+      // Actualizar fechas en la interfaz
+      $('#erFechaDesde').value = fechaDesde;
+      $('#erFechaHasta').value = fechaHasta;
+      
+      // Mostrar período
+      const fechaDesdeFormatted = new Date(fechaDesde).toLocaleDateString('es-AR');
+      const fechaHastaFormatted = new Date(fechaHasta).toLocaleDateString('es-AR');
+      $('#erPeriodo').textContent = `Período: ${fechaDesdeFormatted} al ${fechaHastaFormatted}`;
+      
+      // Renderizar ingresos
+      const ingresosTbody = $('#tablaIngresos tbody');
+      ingresosTbody.innerHTML = '';
+      data.ingresos.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${item.cuenta}</td>
+          <td class="amount">${fmt(item.importe)}</td>
+        `;
+        ingresosTbody.appendChild(tr);
+      });
+      
+      // Renderizar gastos
+      const gastosTbody = $('#tablaGastos tbody');
+      gastosTbody.innerHTML = '';
+      data.gastos.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${item.cuenta}</td>
+          <td class="amount">${fmt(item.importe)}</td>
+        `;
+        gastosTbody.appendChild(tr);
+      });
+      
+      // Actualizar totales
+      $('#totalIngresos').textContent = fmt(data.total_ingresos);
+      $('#totalGastos').textContent = fmt(data.total_gastos);
+      
+      // Calcular y mostrar resultado del ejercicio
+      const resultado = data.total_ingresos - data.total_gastos;
+      const resultadoElement = $('#resultadoEjercicio');
+      const tipoResultadoElement = $('#resultadoTipo');
+      
+      resultadoElement.textContent = fmt(Math.abs(resultado));
+      if (resultado >= 0) {
+        resultadoElement.className = 'resultado-total positivo';
+        tipoResultadoElement.textContent = '(Utilidad)';
+        tipoResultadoElement.className = 'resultado-tipo';
+      } else {
+        resultadoElement.className = 'resultado-total negativo';
+        tipoResultadoElement.textContent = '(Pérdida)';
+        tipoResultadoElement.className = 'resultado-tipo';
+      }
+      
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al generar el estado de resultados: ' + error.message);
+    }
+  }
+
   function bindEvents(){
     const addAcc = $('#addAcc');
     if(addAcc){
@@ -372,6 +470,21 @@
       }; 
     }
     // Mayor/Balance/Estados trasladados a Reportes
+    const btnGenerarER = $('#btnGenerarER');
+    const erFechaDesde = $('#erFechaDesde');
+    const erFechaHasta = $('#erFechaHasta');
+    
+    if (btnGenerarER) {
+      btnGenerarER.addEventListener('click', renderEstadoResultados);
+    }
+    
+    // Configurar fechas por defecto (año actual)
+    if (erFechaDesde && !erFechaDesde.value) {
+      const today = new Date();
+      const firstDay = new Date(today.getFullYear(), 0, 1);
+      erFechaDesde.value = firstDay.toISOString().split('T')[0];
+      erFechaHasta.value = today.toISOString().split('T')[0];
+    }
   }
 
   async function loadCuentas(){ const url = empresa? `/accounting/api/cuentas?empresa=${empresa}` : `/accounting/api/cuentas`; const res = await fetch(url, { credentials: 'same-origin' }); cuentas = res.ok ? await res.json() : []; }

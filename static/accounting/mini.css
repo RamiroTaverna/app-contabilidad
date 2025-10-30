@@ -57,6 +57,157 @@ tfoot td{font-weight:600}
 .footer{color:var(--muted);text-align:center;font-size:12px;margin-top:8px}
 .hint{color:var(--muted);font-size:12px}
 
+/* Estado de Resultados */
+.report-container {
+  padding: 16px;
+}
+
+.report-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.report-header h3 {
+  font-size: 1.5rem;
+  color: var(--primary);
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+
+.periodo {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.report-section {
+  margin-bottom: 24px;
+}
+
+.report-section h4 {
+  font-size: 1.1rem;
+  color: var(--fg);
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.report-table th {
+  text-align: left;
+  padding: 10px;
+  background-color: #f8f8f8;
+  border-bottom: 2px solid var(--border);
+  font-weight: 600;
+}
+
+.report-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.report-table .amount {
+  text-align: right;
+  font-family: monospace;
+  font-weight: 500;
+}
+
+.report-table tfoot td {
+  font-weight: 600;
+  border-top: 2px solid var(--border);
+  background-color: #f8f8f8;
+}
+
+/* Estilo mejorado para la sección de resultado */
+.resultado {
+  margin-top: 2rem;
+  text-align: center;
+  padding: 1.5rem;
+  background-color: #f8f8f8;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.resultado h4 {
+  font-size: 1.2rem;
+  color: var(--primary);
+  margin: 0 0 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.resultado-total {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0.5rem 0;
+  font-family: 'Roboto', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.5px;
+}
+
+.resultado-total.positivo {
+  color: #2e7d32; /* Verde para utilidad */
+}
+
+.resultado-total.negativo {
+  color: #c62828; /* Rojo para pérdida */
+}
+
+.resultado-tipo {
+  font-size: 1.1rem;
+  color: var(--muted);
+  font-weight: 500;
+  margin-top: 0.5rem;
+}
+
+/* Mejoras para la sección de fechas */
+.date-range {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.date-range label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.date-input {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: white;
+  font-size: 0.9rem;
+}
+
+/* Ajustes responsivos */
+@media (max-width: 768px) {
+  .date-range {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+  
+  .date-range label {
+    width: 100%;
+  }
+  
+  .date-input {
+    width: 100%;
+  }
+  
+  .resultado-total {
+    font-size: 2rem;
+  }
+}
+
 /* Footer (mini) — waves and layout for accounting pages */
 .site-footer{ position:relative; margin-top:1rem; color:var(--fg); font-size:13px; }
 .footer-waves{ position:relative; line-height:0; }

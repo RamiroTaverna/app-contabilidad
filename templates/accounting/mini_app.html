@@ -25,6 +25,72 @@
   </header>
 
   <main class="msc-main">
+    <!-- Sección de Estado de Resultados -->
+    <section id="sec-estado-resultados" class="hidden">
+      <div class="title">
+        <h2>Estado de Resultados</h2>
+        <div class="actions">
+          <div class="date-range">
+            <label>Desde: <input type="date" id="erFechaDesde" class="date-input"></label>
+            <label>Hasta: <input type="date" id="erFechaHasta" class="date-input"></label>
+            <button class="btn" id="btnGenerarER">Generar Reporte</button>
+            <button class="btn" id="btnExportarPDF">Exportar PDF</button>
+            <button class="btn" id="btnExportarExcel">Exportar Excel</button>
+          </div>
+        </div>
+      </div>
+      <div class="report-container">
+        <div id="erHeader" class="report-header">
+          <h3>Estado de Resultados</h3>
+          <div id="erPeriodo" class="periodo">Período: </div>
+        </div>
+        
+        <div class="report-section">
+          <h4>Ingresos</h4>
+          <table id="tablaIngresos" class="report-table">
+            <thead>
+              <tr>
+                <th>Cuenta</th>
+                <th class="amount">Importe</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr class="total">
+                <td>Total Ingresos</td>
+                <td id="totalIngresos" class="amount">0.00</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        
+        <div class="report-section">
+          <h4>Gastos</h4>
+          <table id="tablaGastos" class="report-table">
+            <thead>
+              <tr>
+                <th>Cuenta</th>
+                <th class="amount">Importe</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr class="total">
+                <td>Total Gastos</td>
+                <td id="totalGastos" class="amount">0.00</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        
+        <div class="report-section resultado">
+          <h4>Resultado del Ejercicio</h4>
+          <div id="resultadoEjercicio" class="resultado-total">0.00</div>
+          <div id="resultadoTipo" class="resultado-tipo">(Utilidad)</div>
+        </div>
+      </div>
+    </section>
+    
     <section id="sec-cuentas">
       <div class="title">
         <h2>Plan de Cuentas</h2>
