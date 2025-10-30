@@ -2,25 +2,6 @@
 {% block title %}Ingresar{% endblock %}
 {% block content %}
 <h1>Ingresar</h1>
-<form method="post">
-  {{ form.csrf_token }}
-  <div>
-    {{ form.email.label }}<br>
-    {{ form.email(size=40) }}
-  </div>
-  <div>
-    {{ form.password.label }}<br>
-    {{ form.password(size=40) }}
-  </div>
-  <div>
-    {{ form.empresa.label }}<br>
-    {{ form.empresa(size=40) }}
-  </div>
-  <div style="margin-top: .5rem;">
-    {{ form.submit() }}
-  </div>
-</form>
-<p style="margin-top:1rem;">
-  O bien, <a href="{{ url_for('auth.login') }}">ingresar con Google</a>.
-</p>
+<p>Usa tu cuenta de Google para iniciar sesión. No se requieren credenciales locales.</p>
+<p><a class="btn primary" href="{{ url_for('auth.login') }}">Ingresar con Google</a></p>
 {% endblock %}
