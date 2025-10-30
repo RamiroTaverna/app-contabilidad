@@ -321,19 +321,21 @@ def api_asientos_create():
                 'total_haber': str(total_haber)
             }), 400
 
-        # Guardar en la base de datos
+        # Guardar el asiento primero para obtener el ID
         db.session.add(asiento)
+        db.session.flush()  # Esto genera el ID sin hacer commit
         
-        # Registrar en el log
+        # Ahora que tenemos el ID, podemos crear el log
         log = ChangeLog(
             entidad='asiento',
-            id_entidad=asiento.id_asiento,
+            id_entidad=asiento.id_asiento,  # Ahora sí tiene un ID válido
             accion='create',
             id_usuario=g.user.id,
             datos=f"Asiento #{num_asiento} - {asiento.leyenda or 'Sin descripción'}"
         )
         db.session.add(log)
         
+        # Hacer commit de todo
         db.session.commit()
         
         return jsonify({
@@ -345,6 +347,120 @@ def api_asientos_create():
     except SQLAlchemyError as e:
         db.session.rollback()
         return jsonify({'error': 'Error al crear el asiento: ' + str(e)}), 500
+
+@bp.route('/api/asientos/<int:id_asiento>', methods=['PUT'])
+@login_required
+def api_asientos_update(id_asiento):
+    try:
+        data = request.get_json()
+        if not data or 'detalles' not in data or not data['detalles']:
+            return jsonify({'error': 'Datos de asiento inválidos'}), 400
+
+        # Obtener la empresa del usuario actual
+        id_empresa = _empresa_actual_from_request()
+        if not id_empresa:
+            return jsonify({'error': 'Empresa no especificada o no autorizada'}), 403
+
+        # Buscar el asiento existente
+        asiento = Asiento.query.filter_by(
+            id_asiento=id_asiento,
+            id_empresa=id_empresa
+        ).first()
+
+        if not asiento:
+            return jsonify({'error': 'Asiento no encontrado o no autorizado'}), 404
+
+        # Guardar datos para el log
+        num_asiento = asiento.num_asiento
+        leyenda_anterior = asiento.leyenda or 'Sin descripción'
+
+        # Actualizar datos básicos del asiento
+        if 'fecha' in data:
+            asiento.fecha = data['fecha']
+        if 'leyenda' in data:
+            asiento.leyenda = data['leyenda']
+        if 'doc_respaldatorio' in data:
+            asiento.doc_respaldatorio = data['doc_respaldatorio']
+        
+        asiento.id_usuario = g.user.id  # Actualizar el usuario que modifica
+
+        # Validar y actualizar detalles
+        total_debe = Decimal('0')
+        total_haber = Decimal('0')
+        nuevos_detalles = []
+        
+        # Primero validar todos los detalles
+        for det in data['detalles']:
+            if 'id_cuenta' not in det or 'tipo' not in det or 'importe' not in det:
+                db.session.rollback()
+                return jsonify({'error': 'Faltan campos requeridos en los detalles'}), 400
+            
+            if det['tipo'] not in ('debe', 'haber'):
+                db.session.rollback()
+                return jsonify({'error': 'Tipo de asiento debe ser "debe" o "haber"'}), 400
+            
+            try:
+                importe = Decimal(str(det['importe']))
+                if importe <= 0:
+                    raise ValueError("El importe debe ser mayor a cero")
+            except (ValueError, TypeError):
+                db.session.rollback()
+                return jsonify({'error': 'Importe inválido'}), 400
+            
+            if det['tipo'] == 'debe':
+                total_debe += importe
+            else:
+                total_haber += importe
+            
+            nuevos_detalles.append({
+                'id_cuenta': det['id_cuenta'],
+                'tipo': det['tipo'],
+                'importe': importe
+            })
+        
+        # Validar que los totales coincidan
+        if total_debe != total_haber:
+            db.session.rollback()
+            return jsonify({
+                'error': 'Los totales de debe y haber no coinciden',
+                'total_debe': str(total_debe),
+                'total_haber': str(total_haber)
+            }), 400
+
+        # Eliminar detalles existentes
+        DetalleAsiento.query.filter_by(id_asiento=id_asiento).delete()
+        
+        # Agregar los nuevos detalles
+        for det in nuevos_detalles:
+            detalle = DetalleAsiento(
+                id_asiento=id_asiento,
+                id_cuenta=det['id_cuenta'],
+                tipo=det['tipo'],
+                importe=det['importe']
+            )
+            db.session.add(detalle)
+
+        # Registrar en el log
+        log = ChangeLog(
+            entidad='asiento',
+            id_entidad=id_asiento,
+            accion='update',
+            id_usuario=g.user.id,
+            datos=f"Actualizado asiento #{num_asiento} - {asiento.leyenda or 'Sin descripción'}"
+        )
+        db.session.add(log)
+        
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Asiento actualizado exitosamente',
+            'id_asiento': id_asiento,
+            'num_asiento': num_asiento
+        })
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({'error': 'Error al actualizar el asiento: ' + str(e)}), 500
 
 @bp.route('/api/asientos/<int:id_asiento>', methods=['DELETE'])
 @login_required

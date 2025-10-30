@@ -76,6 +76,69 @@
     const pill = $('#infoDescuadre'); if(!pill) return; pill.textContent = d===h? 'Cuadrado ✔' : `Descuadre: ${fmt(Math.abs(d-h))}`; pill.className = 'pill ' + (d===h? 'ok':'bad');
   }
 
+  // Variable global para rastrear el asiento que se está editando
+  let asientoEditando = null;
+
+  // Función global para ver/editar un asiento
+  window.verAsiento = function(index) {
+    console.log('Viendo/Editando asiento en índice:', index);
+    if (index < 0 || index >= asientos.length) {
+      console.error('Índice de asiento inválido:', index);
+      return;
+    }
+
+    const asiento = asientos[index];
+    asientoEditando = asiento; // Establecer el asiento que se está editando
+    
+    // Limpiar el formulario actual
+    tempLineas = [];
+    
+    // Llenar los detalles del asiento
+    asiento.detalles.forEach(detalle => {
+      tempLineas.push({
+        id_cuenta: detalle.id_cuenta,
+        debe: detalle.tipo === 'debe' ? detalle.importe : 0,
+        haber: detalle.tipo === 'haber' ? detalle.importe : 0
+      });
+    });
+    
+    // Actualizar los campos del formulario
+    if ($('#jeDate')) $('#jeDate').value = asiento.fecha || new Date().toISOString().slice(0, 10);
+    if ($('#jeConcepto')) $('#jeConcepto').value = asiento.leyenda || '';
+    
+    // Cambiar el texto del botón a "Actualizar"
+    const addAsientoBtn = $('#addAsiento');
+    if (addAsientoBtn) {
+      addAsientoBtn.textContent = 'Actualizar';
+      addAsientoBtn.classList.add('primary');
+    }
+    
+    // Actualizar la interfaz
+    renderEntrada();
+    
+    // Hacer scroll al inicio de la página
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
+  // Función para limpiar el formulario después de guardar/cancelar
+  function limpiarFormulario() {
+    tempLineas = [];
+    asientoEditando = null;
+    
+    // Restaurar valores por defecto
+    if ($('#jeDate')) $('#jeDate').value = new Date().toISOString().slice(0, 10);
+    if ($('#jeConcepto') && $('#jeConcepto').value) $('#jeConcepto').value = '';
+    
+    // Restaurar el botón
+    const addAsientoBtn = $('#addAsiento');
+    if (addAsientoBtn) {
+      addAsientoBtn.textContent = 'Agregar Asiento';
+      addAsientoBtn.classList.remove('primary');
+    }
+    
+    renderEntrada();
+  }
+
   // Función global para eliminar asientos
   window.eliminarAsiento = async function(index) {
     console.log('Eliminando asiento en índice:', index);
@@ -152,7 +215,7 @@
         <td class="monospace">${fmt(totalD)}</td>
         <td class="monospace">${fmt(totalH)}</td>
         <td>
-          <button class="btn ghost ver" data-i="${idx}">Ver</button>
+          <button class="btn ghost ver" onclick="window.verAsiento(${idx}); return false;">Ver</button>
           <button class="btn ghost danger" onclick="window.eliminarAsiento(${idx}); return false;">Borrar</button>
         </td>`;
       tb.appendChild(tr);
@@ -225,7 +288,89 @@
       tablaEntrada.addEventListener('input', (e)=>{ const row = e.target.closest('tr'); if(!row) return; const idx = Array.from(row.parentNode.children).indexOf(row); tempLineas[idx].id_cuenta = parseInt(row.querySelector('.account').value,10); tempLineas[idx].debe = parseNum(row.querySelector('.debe').value); tempLineas[idx].haber = parseNum(row.querySelector('.haber').value); if(tempLineas[idx].debe>0) { row.querySelector('.haber').value = 0; tempLineas[idx].haber=0; } if(tempLineas[idx].haber>0){ row.querySelector('.debe').value = 0; tempLineas[idx].debe=0; } totalesEntrada(); });
       tablaEntrada.addEventListener('click', (e)=>{ if(e.target.classList.contains('del')){ const row = e.target.closest('tr'); const idx = Array.from(row.parentNode.children).indexOf(row); tempLineas.splice(idx,1); renderEntrada(); } });
     }
-    const addAsiento = $('#addAsiento'); if(addAsiento){ addAsiento.onclick = async ()=>{ const fecha = $('#jeDate').value || new Date().toISOString().slice(0,10); const concepto = $('#jeConcepto').value.trim() || 'Sin concepto'; const rows = $$('#tablaEntrada tbody tr'); if(rows.length<2) return alert('Agregá al menos dos líneas'); let d=0,h=0; const renglones = []; for(const r of rows){ const id_cuenta = parseInt(r.querySelector('.account').value,10); const debe = parseNum(r.querySelector('.debe').value); const haber = parseNum(r.querySelector('.haber').value); if(debe===0 && haber===0) continue; const tipo = debe>0? 'debe':'haber'; const importe = debe>0? debe:haber; renglones.push({id_cuenta, tipo, importe}); d+=debe; h+=haber; } if(renglones.length<2) return alert('Completá importes'); if(Math.abs(d-h) > 0.005) return alert('El asiento no está cuadrado'); try{ const payload = { fecha, doc: '', leyenda: concepto, renglones }; if(empresa) payload.empresa = parseInt(empresa,10); const res = await fetch('/accounting/api/asientos', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body: JSON.stringify(payload) }); if(!res.ok){ const t = await res.text(); throw new Error(t); } await loadAsientos(); tempLineas = []; $('#jeConcepto').value=''; renderEntrada(); renderDiario(); renderTodo(); }catch(err){ alert('Error al guardar: '+err.message); } }; }
+    const addAsiento = $('#addAsiento'); 
+    if (addAsiento) { 
+      addAsiento.onclick = async () => {
+        // Obtener datos del formulario
+        const fecha = $('#jeDate').value || new Date().toISOString().slice(0, 10);
+        const concepto = $('#jeConcepto').value.trim() || 'Sin concepto';
+        const rows = $$('#tablaEntrada tbody tr');
+        
+        // Validaciones
+        if (rows.length < 2) return alert('Agregá al menos dos líneas');
+        
+        // Procesar líneas del asiento
+        let d = 0, h = 0;
+        const renglones = [];
+        
+        for (const r of rows) {
+          const id_cuenta = parseInt(r.querySelector('.account').value, 10);
+          const debe = parseNum(r.querySelector('.debe').value);
+          const haber = parseNum(r.querySelector('.haber').value);
+          
+          if (debe === 0 && haber === 0) continue;
+          
+          const tipo = debe > 0 ? 'debe' : 'haber';
+          const importe = debe > 0 ? debe : haber;
+          
+          renglones.push({ id_cuenta, tipo, importe });
+          d += debe;
+          h += haber;
+        }
+        
+        if (renglones.length < 2) return alert('Completá importes');
+        if (Math.abs(d - h) > 0.005) return alert('El asiento no está cuadrado');
+        
+        try {
+          const payload = { 
+            fecha, 
+            doc_respaldatorio: '', 
+            leyenda: concepto, 
+            detalles: renglones 
+          };
+          
+          if (empresa) payload.empresa = parseInt(empresa, 10);
+          
+          let url = '/accounting/api/asientos';
+          let method = 'POST';
+          
+          // Si estamos editando un asiento existente, usar el endpoint de actualización
+          if (asientoEditando) {
+            url = `/accounting/api/asientos/${asientoEditando.id_asiento}`;
+            method = 'PUT';
+          }
+          
+          const res = await fetch(url, { 
+            method,
+            headers: { 'Content-Type': 'application/json' }, 
+            credentials: 'same-origin', 
+            body: JSON.stringify(payload) 
+          });
+          
+          if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.error || 'Error al guardar el asiento');
+          }
+          
+          // Recargar datos y actualizar la interfaz
+          await loadAsientos();
+          limpiarFormulario();
+          renderDiario();
+          renderTodo();
+          
+          // Mostrar mensaje de éxito
+          if (asientoEditando) {
+            alert('Asiento actualizado exitosamente');
+          } else {
+            alert('Asiento creado exitosamente');
+          }
+          
+        } catch (err) { 
+          console.error('Error al guardar el asiento:', err);
+          alert(`Error al guardar el asiento: ${err.message}`); 
+        }
+      }; 
+    }
     // Mayor/Balance/Estados trasladados a Reportes
   }
 
