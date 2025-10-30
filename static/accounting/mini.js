@@ -76,6 +76,69 @@
     const pill = $('#infoDescuadre'); if(!pill) return; pill.textContent = d===h? 'Cuadrado ✔' : `Descuadre: ${fmt(Math.abs(d-h))}`; pill.className = 'pill ' + (d===h? 'ok':'bad');
   }
 
+  // Función global para eliminar asientos
+  window.eliminarAsiento = async function(index) {
+    console.log('Eliminando asiento en índice:', index);
+    if (index < 0 || index >= asientos.length) {
+      console.error('Índice de asiento inválido:', index);
+      return;
+    }
+    
+    const asientoAEliminar = asientos[index];
+    
+    if (!confirm('¿Estás seguro de que deseas eliminar este asiento? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    try {
+      // Obtener el ID del asiento a eliminar
+      const idAsiento = asientoAEliminar.id_asiento;
+      if (!idAsiento) {
+        throw new Error('El asiento no tiene un ID válido');
+      }
+
+      // Enviar petición al servidor para eliminar el asiento
+      const response = await fetch(`/accounting/api/asientos/${idAsiento}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Error al eliminar el asiento');
+      }
+
+      // Si la eliminación en el servidor fue exitosa, actualizar la vista local
+      asientos.splice(index, 1);
+      
+      // Actualizar todas las vistas
+      renderDiario();
+      renderMayor();
+      renderTrial();
+      renderEstados();
+      renderTodo();
+      
+      // Mostrar mensaje de éxito
+      alert('El asiento ha sido eliminado correctamente de la base de datos.');
+      
+    } catch (error) {
+      console.error('Error al eliminar el asiento:', error);
+      alert(`Error al eliminar el asiento: ${error.message}`);
+      
+      // Recargar los datos del servidor para restaurar el estado
+      try {
+        await loadAsientos();
+        renderDiario();
+        renderTodo();
+      } catch (e) {
+        console.error('Error al recargar los datos:', e);
+      }
+    }
+  };
+
   function renderDiario(){
     const tb = $('#tablaDiario tbody'); if(!tb) return; tb.innerHTML='';
     const list = asientos; // backend ya entrega desc (más nuevos arriba)
@@ -83,8 +146,15 @@
       const totalD = a.detalles.reduce((s,l)=>s + (l.tipo==='debe'? l.importe:0),0);
       const totalH = a.detalles.reduce((s,l)=>s + (l.tipo==='haber'? l.importe:0),0);
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${a.fecha}</td><td>${a.leyenda||''}</td><td class="monospace">${fmt(totalD)}</td><td class="monospace">${fmt(totalH)}</td>
-        <td><button class="btn ghost ver" data-i="${idx}">Ver</button> <button class="btn ghost danger" data-del="${idx}">Borrar</button></td>`;
+      tr.innerHTML = `
+        <td>${a.fecha}</td>
+        <td>${a.leyenda||''}</td>
+        <td class="monospace">${fmt(totalD)}</td>
+        <td class="monospace">${fmt(totalH)}</td>
+        <td>
+          <button class="btn ghost ver" data-i="${idx}">Ver</button>
+          <button class="btn ghost danger" onclick="window.eliminarAsiento(${idx}); return false;">Borrar</button>
+        </td>`;
       tb.appendChild(tr);
       const tr2 = document.createElement('tr');
       const det = a.detalles.map(l=>{

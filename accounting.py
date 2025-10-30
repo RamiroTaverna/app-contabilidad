@@ -251,83 +251,147 @@ def api_asientos_list():
     asientos = q.order_by(Asiento.fecha.desc(), Asiento.num_asiento.desc()).all()
     return jsonify([_asiento_to_dict(a) for a in asientos])
 
-@bp.post("/api/asientos")
+
+@bp.route('/api/asientos', methods=['POST'])
 @login_required
 def api_asientos_create():
-    if not request.is_json:
-        abort(400, description="JSON requerido")
-    payload = request.get_json()
-    empresa_id = _empresa_actual_from_request()
-    from datetime import date
     try:
-        fecha = date.fromisoformat(payload.get("fecha") or date.today().isoformat())
-    except Exception:
-        abort(400, description="Fecha inválida")
-    doc = (payload.get("doc") or "").strip()
-    leyenda = (payload.get("leyenda") or "").strip()
-    renglones = payload.get("renglones") or []
-    if len(renglones) < 2:
-        abort(400, description="Debe haber al menos dos renglones")
-    suma_debe = Decimal("0")
-    suma_haber = Decimal("0")
-    detalles = []
-    for r in renglones:
-        c_id = r.get("id_cuenta")
-        t = r.get("tipo")
-        im_raw = r.get("importe")
-        try:
-            c_id_int = int(c_id)
-        except Exception:
-            continue
-        if t not in ("debe", "haber"):
-            abort(400, description="Tipo inválido")
-        try:
-            monto = Decimal(str(im_raw))
-        except Exception:
-            abort(400, description="Importe inválido")
-        if monto <= 0:
-            abort(400, description="Importe debe ser positivo")
-        if t == "debe":
-            suma_debe += monto
-        else:
-            suma_haber += monto
-        detalles.append((c_id_int, t, monto))
-    if suma_debe == 0 or suma_haber == 0 or suma_debe != suma_haber:
-        abort(400, description="La partida debe estar balanceada (Debe = Haber > 0)")
-    # correlativo por empresa
-    last_num = db.session.query(func.max(Asiento.num_asiento)).filter_by(id_empresa=empresa_id).scalar() or 0
-    nuevo_num = last_num + 1
-    try:
-        a = Asiento(
-            id_empresa=empresa_id,
-            fecha=fecha,
-            num_asiento=nuevo_num,
-            doc_respaldatorio=doc,
+        data = request.get_json()
+        if not data or 'detalles' not in data or not data['detalles']:
+            return jsonify({'error': 'Datos de asiento inválidos'}), 400
+
+        id_empresa = _empresa_actual_from_request()
+        if not id_empresa:
+            return jsonify({'error': 'Empresa no especificada'}), 400
+
+        # Obtener el próximo número de asiento
+        ultimo_asiento = Asiento.query.filter_by(id_empresa=id_empresa)\
+                                    .order_by(Asiento.num_asiento.desc()).first()
+        num_asiento = 1 if not ultimo_asiento else ultimo_asiento.num_asiento + 1
+
+        # Crear el asiento
+        asiento = Asiento(
+            id_empresa=id_empresa,
+            num_asiento=num_asiento,
+            fecha=data.get('fecha') or date.today(),
+            doc_respaldatorio=data.get('doc_respaldatorio'),
             id_usuario=g.user.id,
-            leyenda=leyenda,
+            leyenda=data.get('leyenda')
         )
-        db.session.add(a)
-        db.session.flush()
-        for c_id_int, t, monto in detalles:
-            db.session.add(DetalleAsiento(
-                id_asiento=a.id_asiento,
-                id_cuenta=c_id_int,
-                tipo=t,
-                importe=monto,
-            ))
-        # Auditoría
-        db.session.add(ChangeLog(
-            entidad="asiento",
-            id_entidad=a.id_asiento,
-            accion="create",
+
+        # Validar y crear detalles
+        total_debe = Decimal('0')
+        total_haber = Decimal('0')
+        
+        for det in data['detalles']:
+            if 'id_cuenta' not in det or 'tipo' not in det or 'importe' not in det:
+                db.session.rollback()
+                return jsonify({'error': 'Faltan campos requeridos en los detalles'}), 400
+            
+            if det['tipo'] not in ('debe', 'haber'):
+                db.session.rollback()
+                return jsonify({'error': 'Tipo de asiento debe ser "debe" o "haber"'}), 400
+            
+            try:
+                importe = Decimal(str(det['importe']))
+                if importe <= 0:
+                    raise ValueError("El importe debe ser mayor a cero")
+            except (ValueError, TypeError):
+                db.session.rollback()
+                return jsonify({'error': 'Importe inválido'}), 400
+            
+            if det['tipo'] == 'debe':
+                total_debe += importe
+            else:
+                total_haber += importe
+            
+            detalle = DetalleAsiento(
+                id_cuenta=det['id_cuenta'],
+                tipo=det['tipo'],
+                importe=importe
+            )
+            asiento.detalles.append(detalle)
+        
+        # Validar que los totales coincidan
+        if total_debe != total_haber:
+            db.session.rollback()
+            return jsonify({
+                'error': 'Los totales de debe y haber no coinciden',
+                'total_debe': str(total_debe),
+                'total_haber': str(total_haber)
+            }), 400
+
+        # Guardar en la base de datos
+        db.session.add(asiento)
+        
+        # Registrar en el log
+        log = ChangeLog(
+            entidad='asiento',
+            id_entidad=asiento.id_asiento,
+            accion='create',
             id_usuario=g.user.id,
-            datos=f"{{\"fecha\":\"{fecha.isoformat()}\",\"num\":{nuevo_num},\"renglones\":{len(detalles)}}}"
-        ))
+            datos=f"Asiento #{num_asiento} - {asiento.leyenda or 'Sin descripción'}"
+        )
+        db.session.add(log)
+        
         db.session.commit()
-        return jsonify(_asiento_to_dict(a)), 201
+        
+        return jsonify({
+            'message': 'Asiento creado exitosamente',
+            'id_asiento': asiento.id_asiento,
+            'num_asiento': asiento.num_asiento
+        }), 201
+        
     except SQLAlchemyError as e:
         db.session.rollback()
-        abort(500, description="Error al guardar el asiento")
+        return jsonify({'error': 'Error al crear el asiento: ' + str(e)}), 500
+
+@bp.route('/api/asientos/<int:id_asiento>', methods=['DELETE'])
+@login_required
+def api_asientos_delete(id_asiento):
+    try:
+        # Obtener la empresa del usuario actual
+        id_empresa = _empresa_actual_from_request()
+        if not id_empresa:
+            return jsonify({'error': 'Empresa no especificada o no autorizada'}), 403
+
+        # Buscar el asiento con sus detalles
+        asiento = Asiento.query.filter_by(
+            id_asiento=id_asiento,
+            id_empresa=id_empresa
+        ).first()
+
+        if not asiento:
+            return jsonify({'error': 'Asiento no encontrado o no autorizado'}), 404
+
+        # Guardar datos para el log antes de eliminar
+        num_asiento = asiento.num_asiento
+        leyenda = asiento.leyenda or 'Sin descripción'
+
+        # Eliminar el asiento (los detalles se eliminan en cascada)
+        db.session.delete(asiento)
+
+        # Registrar en el log
+        log = ChangeLog(
+            entidad='asiento',
+            id_entidad=id_asiento,
+            accion='delete',
+            id_usuario=g.user.id,
+            datos=f"Eliminado asiento #{num_asiento} - {leyenda}"
+        )
+        db.session.add(log)
+        
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Asiento eliminado exitosamente',
+            'id_asiento': id_asiento,
+            'num_asiento': num_asiento
+        })
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({'error': 'Error al eliminar el asiento: ' + str(e)}), 500
 
 @bp.get("/api/mayor")
 @login_required

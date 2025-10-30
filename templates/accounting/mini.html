@@ -369,8 +369,15 @@
         const totalD = a.lineas.reduce((s,l)=>s+l.debe,0);
         const totalH = a.lineas.reduce((s,l)=>s+l.haber,0);
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${a.fecha}</td><td>${a.concepto}</td><td class="monospace">${fmt(totalD)}</td><td class="monospace">${fmt(totalH)}</td>
-          <td><button class="btn ghost ver" data-i="${idx}">Ver</button> <button class="btn ghost danger" data-del="${idx}">Borrar</button></td>`;
+        tr.innerHTML = `
+          <td>${a.fecha}</td>
+          <td>${a.concepto}</td>
+          <td class="monospace">${fmt(totalD)}</td>
+          <td class="monospace">${fmt(totalH)}</td>
+          <td>
+            <button class="btn ghost ver" data-i="${idx}">Ver</button> 
+            <button class="btn ghost danger" onclick="window.eliminarAsiento(${idx}); return false;">Borrar</button>
+          </td>`;
         tb.appendChild(tr);
         // detalle
         const tr2 = document.createElement('tr');
@@ -383,9 +390,26 @@
       });
     }
 
-    $('#tablaDiario').addEventListener('click', (e)=>{
-      const del = e.target?.dataset?.del; if(del){ asientos.splice(Number(del),1); renderDiario(); renderTodo(); store.save(); return; }
-    });
+    // Función para manejar la eliminación de asientos (se asigna a window para que sea accesible globalmente)
+    window.eliminarAsiento = function(index) {
+      console.log('Función eliminarAsiento llamada con índice:', index);
+      if (confirm('¿Estás seguro de que deseas eliminar este asiento? Esta acción no se puede deshacer.')) { 
+        console.log('Confirmado, eliminando asiento en índice:', index);
+        // Eliminar el asiento del array
+        asientos.splice(index, 1); 
+        
+        // Volver a renderizar las vistas
+        renderDiario(); 
+        renderTodo(); 
+        
+        // Guardar cambios
+        store.save();
+        
+        console.log('Asiento eliminado correctamente');
+        // Mostrar notificación
+        alert('El asiento ha sido eliminado correctamente.');
+      }
+    };
 
     // --- Posting al Mayor ---
     function postMayor(){
@@ -490,7 +514,20 @@
     function renderTodo(){}
 
     // Inicializar
-    store.load(); renderCuentas(); renderDiario(); renderEntrada(); renderTodo();
+    function init() {
+      store.load(); 
+      renderCuentas(); 
+      renderDiario(); 
+      renderEntrada(); 
+      renderTodo();
+    }
+    
+    // Iniciar cuando el DOM esté listo
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
   </script>
 </body>
 </html>
