@@ -70,427 +70,536 @@
             {% endfor %}
           </select>
         </label>
-        <button class="btn">Ver</button>
-      </form>
-      {% endif %}
-    </div>
-  </header>
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Mini Sistema Contable</title>
+          <style>
+            :root{
+              --bg:#0b0c10; --card:#12131a; --fg:#e8ebf1; --muted:#9aa3b2; --primary:#4f7cff; --accent:#37d39b; --danger:#ff5d6c; --border:#1f2330;
+            }
+            *{box-sizing:border-box}
+            body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+            header{position:sticky;top:0;background:linear-gradient(180deg,#0f1117 0%, #0c0e13 100%);border-bottom:1px solid var(--border);z-index:5}
+            .wrap{max-width:1100px;margin:0 auto;padding:18px}
+            h1{margin:0;font-size:20px;letter-spacing:.3px}
+            .sub{color:var(--muted);font-size:13px;margin-top:6px}
+            nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+            nav button{background:#12131a;color:var(--fg);border:1px solid var(--border);padding:8px 12px;border-radius:10px;cursor:pointer}
+            nav button.active{background:var(--primary);border-color:transparent;color:white}
 
-  <main>
-    <!-- Plan de cuentas -->
-    <section id="sec-cuentas">
-      <div class="title">
-        <h2>Plan de Cuentas</h2>
-        <div class="actions">
-          <button class="btn ghost" id="seedBtn">Cargar ejemplo</button>
-          <button class="btn" id="exportBtn">Exportar JSON</button>
-          <input type="file" id="importFile" class="hidden" accept="application/json" />
-          <button class="btn" id="importBtn">Importar JSON</button>
-          <button class="btn danger" id="resetBtn">Borrar todo</button>
-        </div>
-      </div>
-      <div class="grid two" style="padding:14px 16px">
-        <div>
-          <label>Código</label>
-          <input id="accCode" placeholder="1101" />
-        </div>
-        <div>
-          <label>Nombre</label>
-          <input id="accName" placeholder="Caja" />
-        </div>
-        <div>
-          <label>Tipo</label>
-          <select id="accType">
-            <option>Activo</option>
-            <option>Pasivo</option>
-            <option>Patrimonio</option>
-            <option>Ingreso</option>
-            <option>Gasto</option>
-          </select>
-        </div>
-        <div style="align-self:end">
-          <button class="btn primary" id="addAcc">Agregar cuenta</button>
-        </div>
-      </div>
-      <div style="padding:0 0 12px 0;max-height:260px;overflow:auto">
-        <table id="tablaCuentas">
-          <thead>
-            <tr><th style="width:120px">Código</th><th>Nombre</th><th style="width:140px">Tipo</th><th style="width:90px">Acciones</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
+            main{max-width:1100px;margin:18px auto;padding:0 18px 40px;display:grid;gap:16px}
+            section{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+            section header{position:unset;background:none;border:none}
+            section .title{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
+            section h2{margin:0;font-size:16px}
+            .actions{display:flex;gap:8px;flex-wrap:wrap}
+            .btn{background:#171926;border:1px solid var(--border);color:var(--fg);padding:8px 12px;border-radius:10px;cursor:pointer}
+            .btn.primary{background:var(--primary);color:#fff;border-color:transparent}
+            .btn.accent{background:var(--accent);color:#072615;border-color:transparent}
+            .btn.danger{background:var(--danger);color:#300;border-color:transparent}
+            .btn.ghost{background:transparent;border-color:var(--border)}
+            .grid{display:grid;gap:12px}
+            .two{grid-template-columns:1fr 1fr}
+            .three{grid-template-columns:1fr 1fr 1fr}
 
-    <!-- Libro Diario -->
-    <section id="sec-diario">
-      <div class="title">
-        <h2>Libro Diario (Asientos)</h2>
-        <div class="actions">
-          <span class="pill monospace" id="infoDescuadre">=</span>
-        </div>
-      </div>
-      <div class="grid three" style="padding:14px 16px">
-        <div>
-          <label>Fecha</label>
-          <input type="date" id="jeDate" />
-        </div>
-        <div>
-          <label>Concepto</label>
-          <input id="jeConcepto" placeholder="Venta contado / Pago proveedores / etc." />
-        </div>
-        <div style="align-self:end">
-          <button class="btn primary" id="addLinea">Añadir línea</button>
-          <button class="btn accent" id="addAsiento">Guardar asiento</button>
-        </div>
-      </div>
-      <div style="padding:0 0 12px 0">
-        <table id="tablaEntrada">
-          <thead>
-            <tr>
-              <th style="width:250px">Cuenta</th>
-              <th style="width:130px">Debe</th>
-              <th style="width:130px">Haber</th>
-              <th style="width:90px">Acción</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-          <tfoot>
-            <tr>
-              <td>Total</td>
-              <td class="monospace" id="totDebe">0.00</td>
-              <td class="monospace" id="totHaber">0.00</td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-      <div style="max-height:260px;overflow:auto">
-        <table id="tablaDiario">
-          <thead>
-            <tr>
-              <th style="width:110px">Fecha</th>
-              <th>Concepto</th>
-              <th style="width:120px">Debe</th>
-              <th style="width:120px">Haber</th>
-              <th style="width:110px">Acción</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
+            label{font-size:12px;color:var(--muted)}
+            input, select, textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#0f1117;color:var(--fg)}
+            input[type="number"]{text-align:right}
+
+            table{width:100%;border-collapse:collapse}
+            th, td{padding:10px;border-bottom:1px solid var(--border);font-size:14px}
+            th{color:#b8c0d4;text-align:left;background:#10131a;position:sticky;top:0}
+            tr:hover td{background:#0f131c}
+            tfoot td{font-weight:600}
+
+            .pill{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--border);background:#0f1117;color:#b8c0d4}
+            .ok{color:#0ee28b}
+            .bad{color:#ff808b}
+
+            .hidden{display:none}
+            .monospace{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+
+            .footer{color:var(--muted);text-align:center;font-size:12px;margin-top:8px}
+            .hint{color:var(--muted);font-size:12px}
+          </style>
+        </head>
+        <body>
+          <header>
+            <div class="wrap">
+              <h1>Mini Sistema Contable</h1>
+              <div class="sub">Libro Diario → Libro Mayor → Balance de Comprobación → Estados Financieros (Resultados & Balance General). Guarda en tu navegador.</div>
+              <nav id="tabs"></nav>
+              {% if empresas is not none %}
+              <form method="get" action="{{ url_for('accounting.mini') }}" style="margin-top:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+                <label style="font-size:12px; color:var(--muted)">Empresa
+                  <select name="empresa" style="margin-left:6px; min-width:220px">
+                    <option value="">— Elegir —</option>
+                    {% for e in empresas %}
+                      <option value="{{ e.id_empresa }}" {% if empresa_sel == e.id_empresa %}selected{% endif %}>{{ e.nombre }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <button class="btn">Ver</button>
+              </form>
+              {% endif %}
+            </div>
+          </header>
+
+          <main>
+            <!-- Plan de cuentas -->
+            <section id="sec-cuentas">
+              <div class="title">
+                <h2>Plan de Cuentas</h2>
+                <div class="actions">
+                  <button class="btn ghost" id="seedBtn">Cargar ejemplo</button>
+                  <button class="btn" id="exportBtn">Exportar JSON</button>
+                  <input type="file" id="importFile" class="hidden" accept="application/json" />
+                  <button class="btn" id="importBtn">Importar JSON</button>
+                  <button class="btn danger" id="resetBtn">Borrar todo</button>
+                </div>
+              </div>
+              <div class="grid two" style="padding:14px 16px">
+                <div>
+                  <label>Código</label>
+                  <input id="accCode" placeholder="1101" />
+                </div>
+                <div>
+                  <label>Nombre</label>
+                  <input id="accName" placeholder="Caja" />
+                </div>
+                <div>
+                  <label>Tipo</label>
+                  <select id="accType">
+                    <option>Activo</option>
+                    <option>Pasivo</option>
+                    <option>Patrimonio</option>
+                    <option>Ingreso</option>
+                    <option>Gasto</option>
+                  </select>
+                </div>
+                <div style="align-self:end">
+                  <button class="btn primary" id="addAcc">Agregar cuenta</button>
+                </div>
+              </div>
+              <div style="padding:0 0 12px 0;max-height:260px;overflow:auto">
+                <table id="tablaCuentas">
+                  <thead>
+                    <tr><th style="width:120px">Código</th><th>Nombre</th><th style="width:140px">Tipo</th><th style="width:90px">Acciones</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </section>
+
+            <!-- Libro Diario -->
+            <section id="sec-diario">
+              <div class="title">
+                <h2>Libro Diario (Asientos)</h2>
+                <div class="actions">
+                  <span class="pill monospace" id="infoDescuadre">=</span>
+                </div>
+              </div>
+              <div class="grid three" style="padding:14px 16px">
+                <div>
+                  <label>Fecha</label>
+                  <input type="date" id="jeDate" />
+                </div>
+                <div>
+                  <label>Concepto</label>
+                  <input id="jeConcepto" placeholder="Venta contado / Pago proveedores / etc." />
+                </div>
+                <div style="align-self:end">
+                  <button class="btn primary" id="addLinea">Añadir línea</button>
+                  <button class="btn accent" id="addAsiento">Guardar asiento</button>
+                </div>
+              </div>
+              <div style="padding:0 0 12px 0">
+                <table id="tablaEntrada">
+                  <thead>
+                    <tr>
+                      <th style="width:250px">Cuenta</th>
+                      <th style="width:130px">Debe</th>
+                      <th style="width:130px">Haber</th>
+                      <th style="width:90px">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                  <tfoot>
+                    <tr>
+                      <td>Total</td>
+                      <td class="monospace" id="totDebe">0.00</td>
+                      <td class="monospace" id="totHaber">0.00</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <div style="max-height:260px;overflow:auto">
+                <table id="tablaDiario">
+                  <thead>
+                    <tr>
+                      <th style="width:110px">Fecha</th>
+                      <th>Concepto</th>
+                      <th style="width:120px">Debe</th>
+                      <th style="width:120px">Haber</th>
+                      <th style="width:110px">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </section>
 
     
-  </main>
+          </main>
 
-  <script>
-    // --- Datos & Persistencia ---
-    const $ = (s, r=document) => r.querySelector(s);
-    const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
-    const store = {
-      save(){ localStorage.setItem('msc:data', JSON.stringify({cuentas, asientos})); },
-      load(){ try{ const raw = localStorage.getItem('msc:data'); if(!raw) return; const {cuentas:c, asientos:a} = JSON.parse(raw); if(c) cuentas = c; if(a) asientos = a; }catch(e){ console.warn(e) } }
-    };
+          <script>
+            // --- Datos & Persistencia ---
+            const $ = (s, r=document) => r.querySelector(s);
+            const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+            const store = {
+              save(){ localStorage.setItem('msc:data', JSON.stringify({cuentas, asientos})); },
+              load(){ try{ const raw = localStorage.getItem('msc:data'); if(!raw) return; const {cuentas:c, asientos:a} = JSON.parse(raw); if(c) cuentas = c; if(a) asientos = a; }catch(e){ console.warn(e) } }
+            };
 
-    // Tipos y saldos normales
-    const tipos = ['Activo','Pasivo','Patrimonio','Ingreso','Gasto'];
-    const normal = { Activo:'D', Gasto:'D', Pasivo:'H', Patrimonio:'H', Ingreso:'H' };
+            // Tipos y saldos normales
+            const tipos = ['Activo','Pasivo','Patrimonio','Ingreso','Gasto'];
+            const normal = { Activo:'D', Gasto:'D', Pasivo:'H', Patrimonio:'H', Ingreso:'H' };
 
-    // Estado
-    let cuentas = [];
-    let asientos = [];
-    let tempLineas = []; // líneas del formulario de asiento actual
+            // Estado
+            let cuentas = [];
+            let asientos = [];
+            let tempLineas = []; // líneas del formulario de asiento actual
 
-    // --- UI Tabs ---
-    const secciones = [
-      {id:'sec-cuentas', label:'Plan de Cuentas'},
-      {id:'sec-diario', label:'Libro Diario'},
-    ];
-    const tabs = $('#tabs');
-    secciones.forEach((s,i)=>{
-      const b = document.createElement('button');
-      b.textContent = s.label; b.dataset.for = s.id; if(i===0) b.classList.add('active');
-      b.onclick = ()=>{ $$('#tabs button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); secciones.forEach(ss=>$('#'+ss.id).classList.add('hidden')); $('#'+s.id).classList.remove('hidden'); };
-      tabs.appendChild(b);
-    });
-    secciones.slice(1).forEach(ss=>$('#'+ss.id).classList.add('hidden'));
+            // --- UI Tabs ---
+            const secciones = [
+              {id:'sec-cuentas', label:'Plan de Cuentas'},
+              {id:'sec-diario', label:'Libro Diario'},
+            ];
+            const tabs = $('#tabs');
+            secciones.forEach((s,i)=>{
+              const b = document.createElement('button');
+              b.textContent = s.label; b.dataset.for = s.id; if(i===0) b.classList.add('active');
+              b.onclick = ()=>{ $$('#tabs button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); secciones.forEach(ss=>$('#'+ss.id).classList.add('hidden')); $('#'+s.id).classList.remove('hidden'); };
+              tabs.appendChild(b);
+            });
+            secciones.slice(1).forEach(ss=>$('#'+ss.id).classList.add('hidden'));
 
-    // --- Helpers ---
-    const fmt = (n)=> (Number(n)||0).toLocaleString('es-AR',{minimumFractionDigits:2, maximumFractionDigits:2});
-    const parse = (v)=>{ const n = Number(String(v).replace(/\./g,'').replace(',','.')); return isNaN(n)?0:n; };
+            // --- Helpers ---
+            const fmt = (n)=> (Number(n)||0).toLocaleString('es-AR',{minimumFractionDigits:2, maximumFractionDigits:2});
+            const parse = (v)=>{ const n = Number(String(v).replace(/\./g,'').replace(',','.')); return isNaN(n)?0:n; };
 
-    // --- Plan de Cuentas ---
-    function renderCuentas(){
-      const tb = $('#tablaCuentas tbody'); tb.innerHTML = '';
-      cuentas.sort((a,b)=> a.code.localeCompare(b.code)).forEach(acc=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="monospace">${acc.code}</td><td>${acc.name}</td><td>${acc.type}</td>
-          <td><button class="btn ghost" data-del="${acc.code}">Eliminar</button></td>`;
-        tb.appendChild(tr);
-      });
-      // options
-      const sel = document.createElement('select');
-      sel.innerHTML = cuentas.map(c=>`<option value="${c.code}">${c.code} — ${c.name}</option>`).join('');
-      $$('#tablaEntrada tbody tr select.account').forEach(s=>{ s.innerHTML = sel.innerHTML; });
-      // mayor selector (ya no visible en Mini)
-      const selMayorEl = $('#selMayor');
-      if(selMayorEl){ selMayorEl.innerHTML = '<option value="">— Elegir —</option>' + cuentas.map(c=>`<option value="${c.code}">${c.code} — ${c.name}</option>`).join(''); }
-    }
+            // --- Plan de Cuentas ---
+            function renderCuentas(){
+              const tb = $('#tablaCuentas tbody'); tb.innerHTML = '';
+              cuentas.sort((a,b)=> a.code.localeCompare(b.code)).forEach(acc=>{
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="monospace">${acc.code}</td><td>${acc.name}</td><td>${acc.type}</td>
+                  <td><button class="btn ghost" data-del="${acc.code}">Eliminar</button></td>`;
+                tb.appendChild(tr);
+              });
+              // options
+              const sel = document.createElement('select');
+              sel.innerHTML = cuentas.map(c=>`<option value="${c.code}">${c.code} — ${c.name}</option>`).join('');
+              $$('#tablaEntrada tbody tr select.account').forEach(s=>{ s.innerHTML = sel.innerHTML; });
+              // mayor selector (ya no visible en Mini)
+              const selMayorEl = $('#selMayor');
+              if(selMayorEl){ selMayorEl.innerHTML = '<option value="">— Elegir —</option>' + cuentas.map(c=>`<option value="${c.code}">${c.code} — ${c.name}</option>`).join(''); }
+            }
 
-    $('#addAcc').onclick = ()=>{
-      const code = $('#accCode').value.trim();
-      const name = $('#accName').value.trim();
-      const type = $('#accType').value;
-      if(!code || !name) return alert('Completá código y nombre');
-      if(!tipos.includes(type)) return alert('Tipo inválido');
-      if(cuentas.some(c=>c.code===code)) return alert('Código ya existe');
-      cuentas.push({code, name, type});
-      $('#accCode').value=''; $('#accName').value='';
-      renderCuentas(); store.save(); renderTodo();
-    };
+            $('#addAcc').onclick = ()=>{
+              const code = $('#accCode').value.trim();
+              const name = $('#accName').value.trim();
+              const type = $('#accType').value;
+              if(!code || !name) return alert('Completá código y nombre');
+              if(!tipos.includes(type)) return alert('Tipo inválido');
+              if(cuentas.some(c=>c.code===code)) return alert('Código ya existe');
+              cuentas.push({code, name, type});
+              $('#accCode').value=''; $('#accName').value='';
+              renderCuentas(); store.save(); renderTodo();
+            };
 
-    $('#tablaCuentas').addEventListener('click', (e)=>{
-      const code = e.target?.dataset?.del; if(!code) return;
-      if(asientos.some(a=> a.lineas.some(l=> l.account===code))) return alert('No podés borrar una cuenta usada en el Diario.');
-      cuentas = cuentas.filter(c=>c.code!==code); renderCuentas(); store.save(); renderTodo();
-    });
+            $('#tablaCuentas').addEventListener('click', (e)=>{
+              const code = e.target?.dataset?.del; if(!code) return;
+              if(asientos.some(a=> a.lineas.some(l=> l.account===code))) return alert('No podés borrar una cuenta usada en el Diario.');
+              cuentas = cuentas.filter(c=>c.code!==code); renderCuentas(); store.save(); renderTodo();
+            });
 
-    // Seed ejemplo
-    $('#seedBtn').onclick = ()=>{
-      if(!confirm('Esto agregará cuentas y asientos de ejemplo.')) return;
-      cuentas = [
-        {code:'1101', name:'Caja', type:'Activo'},
-        {code:'1102', name:'Bancos', type:'Activo'},
-        {code:'1201', name:'Clientes', type:'Activo'},
-        {code:'2101', name:'Proveedores', type:'Pasivo'},
-        {code:'3101', name:'Capital Social', type:'Patrimonio'},
-        {code:'4101', name:'Ventas', type:'Ingreso'},
-        {code:'5101', name:'Costo de Ventas', type:'Gasto'},
-        {code:'5201', name:'Gastos Generales', type:'Gasto'}
-      ];
-      asientos = [
-        {fecha:'2025-01-01', concepto:'Aporte de capital', lineas:[
-          {account:'1101', debe:100000, haber:0}, {account:'3101', debe:0, haber:100000}
-        ]},
-        {fecha:'2025-01-05', concepto:'Compra mercaderías al contado', lineas:[
-          {account:'5101', debe:30000, haber:0}, {account:'1101', debe:0, haber:30000}
-        ]},
-        {fecha:'2025-01-10', concepto:'Venta al contado', lineas:[
-          {account:'1102', debe:60000, haber:0}, {account:'4101', debe:0, haber:60000}
-        ]},
-        {fecha:'2025-01-12', concepto:'Gastos generales', lineas:[
-          {account:'5201', debe:5000, haber:0}, {account:'1102', debe:0, haber:5000}
-        ]},
-        {fecha:'2025-01-20', concepto:'Venta a crédito', lineas:[
-          {account:'1201', debe:45000, haber:0}, {account:'4101', debe:0, haber:45000}
-        ]},
-        {fecha:'2025-01-25', concepto:'Pago a proveedores', lineas:[
-          {account:'2101', debe:20000, haber:0}, {account:'1101', debe:0, haber:20000}
-        ]}
-      ];
-      renderCuentas(); renderDiario(); renderTodo(); store.save();
-    };
+            // Seed ejemplo
+            $('#seedBtn').onclick = ()=>{
+              if(!confirm('Esto agregará cuentas y asientos de ejemplo.')) return;
+              cuentas = [
+                {code:'1101', name:'Caja', type:'Activo'},
+                {code:'1102', name:'Bancos', type:'Activo'},
+                {code:'1201', name:'Clientes', type:'Activo'},
+                {code:'2101', name:'Proveedores', type:'Pasivo'},
+                {code:'3101', name:'Capital Social', type:'Patrimonio'},
+                {code:'4101', name:'Ventas', type:'Ingreso'},
+                {code:'5101', name:'Costo de Ventas', type:'Gasto'},
+                {code:'5201', name:'Gastos Generales', type:'Gasto'}
+              ];
+              asientos = [
+                {fecha:'2025-01-01', concepto:'Aporte de capital', lineas:[
+                  {account:'1101', debe:100000, haber:0}, {account:'3101', debe:0, haber:100000}
+                ]},
+                {fecha:'2025-01-05', concepto:'Compra mercaderías al contado', lineas:[
+                  {account:'5101', debe:30000, haber:0}, {account:'1101', debe:0, haber:30000}
+                ]},
+                {fecha:'2025-01-10', concepto:'Venta al contado', lineas:[
+                  {account:'1102', debe:60000, haber:0}, {account:'4101', debe:0, haber:60000}
+                ]},
+                {fecha:'2025-01-12', concepto:'Gastos generales', lineas:[
+                  {account:'5201', debe:5000, haber:0}, {account:'1102', debe:0, haber:5000}
+                ]},
+                {fecha:'2025-01-20', concepto:'Venta a crédito', lineas:[
+                  {account:'1201', debe:45000, haber:0}, {account:'4101', debe:0, haber:45000}
+                ]},
+                {fecha:'2025-01-25', concepto:'Pago a proveedores', lineas:[
+                  {account:'2101', debe:20000, haber:0}, {account:'1101', debe:0, haber:20000}
+                ]}
+              ];
+              renderCuentas(); renderDiario(); renderTodo(); store.save();
+            };
 
-    // Export / Import / Reset
-    $('#exportBtn').onclick = ()=>{
-      const blob = new Blob([JSON.stringify({cuentas, asientos}, null, 2)], {type:'application/json'});
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mini-sistema-contable.json'; a.click();
-    };
-    $('#importBtn').onclick = ()=> $('#importFile').click();
-    $('#importFile').onchange = (e)=>{
-      const f = e.target.files?.[0]; if(!f) return; const r = new FileReader();
-      r.onload = ()=>{ try{ const d = JSON.parse(r.result); cuentas = d.cuentas||[]; asientos = d.asientos||[]; renderCuentas(); renderDiario(); renderTodo(); store.save(); }catch(err){ alert('Archivo inválido'); } };
-      r.readAsText(f);
-    };
-    $('#resetBtn').onclick = ()=>{ if(confirm('¿Borrar todo?')){ cuentas=[]; asientos=[]; tempLineas=[]; renderCuentas(); renderDiario(); renderTodo(); store.save(); } };
+            // Export / Import / Reset
+            $('#exportBtn').onclick = ()=>{
+              const blob = new Blob([JSON.stringify({cuentas, asientos}, null, 2)], {type:'application/json'});
+              const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mini-sistema-contable.json'; a.click();
+            };
+            $('#importBtn').onclick = ()=> $('#importFile').click();
+            $('#importFile').onchange = (e)=>{
+              const f = e.target.files?.[0]; if(!f) return; const r = new FileReader();
+              r.onload = ()=>{ try{ const d = JSON.parse(r.result); cuentas = d.cuentas||[]; asientos = d.asientos||[]; renderCuentas(); renderDiario(); renderTodo(); store.save(); }catch(err){ alert('Archivo inválido'); } };
+              r.readAsText(f);
+            };
+            $('#resetBtn').onclick = ()=>{ if(confirm('¿Borrar todo?')){ cuentas=[]; asientos=[]; tempLineas=[]; renderCuentas(); renderDiario(); renderTodo(); store.save(); } };
 
-    // --- Libro Diario (form y listado) ---
-    function lineaRow(l){
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><select class="account">${cuentas.map(c=>`<option value="${c.code}" ${l?.account===c.code?'selected':''}>${c.code} — ${c.name}</option>`).join('')}</select></td>
-        <td><input class="debe" type="number" min="0" step="0.01" value="${l?l.debe:0}" /></td>
-        <td><input class="haber" type="number" min="0" step="0.01" value="${l?l.haber:0}" /></td>
-        <td><button class="btn ghost del">Quitar</button></td>`;
-      return tr;
-    }
+            // --- Libro Diario (form y listado) ---
+            function lineaRow(l){
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td><select class="account">${cuentas.map(c=>`<option value="${c.code}" ${l?.account===c.code?'selected':''}>${c.code} — ${c.name}</option>`).join('')}</select></td>
+                <td><input class="debe" type="number" min="0" step="0.01" value="${l?l.debe:0}" /></td>
+                <td><input class="haber" type="number" min="0" step="0.01" value="${l?l.haber:0}" /></td>
+                <td><button class="btn ghost del">Quitar</button></td>`;
+              return tr;
+            }
 
-    function renderEntrada(){
-      const tb = $('#tablaEntrada tbody'); tb.innerHTML = '';
-      tempLineas.forEach(l=> tb.appendChild(lineaRow(l)) );
-      totalesEntrada();
-    }
+            function renderEntrada(){
+              const tb = $('#tablaEntrada tbody'); tb.innerHTML = '';
+              tempLineas.forEach(l=> tb.appendChild(lineaRow(l)) );
+              totalesEntrada();
+            }
 
-    function totalesEntrada(){
-      const rows = $$('#tablaEntrada tbody tr');
-      let d=0,h=0; rows.forEach(r=>{ d += parse(r.querySelector('.debe').value); h += parse(r.querySelector('.haber').value); });
-      $('#totDebe').textContent = fmt(d); $('#totHaber').textContent = fmt(h);
-      const pill = $('#infoDescuadre');
-      pill.textContent = d===h? 'Cuadrado ✔' : `Descuadre: ${fmt(Math.abs(d-h))}`;
-      pill.className = 'pill ' + (d===h? 'ok':'bad');
-    }
+            function totalesEntrada(){
+              const rows = $$('#tablaEntrada tbody tr');
+              let d=0,h=0; rows.forEach(r=>{ d += parse(r.querySelector('.debe').value); h += parse(r.querySelector('.haber').value); });
+              $('#totDebe').textContent = fmt(d); $('#totHaber').textContent = fmt(h);
+              const pill = $('#infoDescuadre');
+              pill.textContent = d===h? 'Cuadrado ✔' : `Descuadre: ${fmt(Math.abs(d-h))}`;
+              pill.className = 'pill ' + (d===h? 'ok':'bad');
+            }
 
-    $('#addLinea').onclick = ()=>{ if(!cuentas.length) return alert('Agregá cuentas primero'); tempLineas.push({account:cuentas[0].code, debe:0, haber:0}); renderEntrada(); };
-    $('#tablaEntrada').addEventListener('input', (e)=>{
-      const row = e.target.closest('tr'); if(!row) return; const idx = Array.from(row.parentNode.children).indexOf(row);
-      tempLineas[idx].account = row.querySelector('.account').value;
-      tempLineas[idx].debe = parse(row.querySelector('.debe').value);
-      tempLineas[idx].haber = parse(row.querySelector('.haber').value);
-      if(tempLineas[idx].debe>0) { row.querySelector('.haber').value = 0; tempLineas[idx].haber=0; }
-      if(tempLineas[idx].haber>0){ row.querySelector('.debe').value = 0; tempLineas[idx].debe=0; }
-      totalesEntrada();
-    });
-    $('#tablaEntrada').addEventListener('click', (e)=>{ if(e.target.classList.contains('del')){ const row = e.target.closest('tr'); const idx = Array.from(row.parentNode.children).indexOf(row); tempLineas.splice(idx,1); renderEntrada(); } });
+            $('#addLinea').onclick = ()=>{ if(!cuentas.length) return alert('Agregá cuentas primero'); tempLineas.push({account:cuentas[0].code, debe:0, haber:0}); renderEntrada(); };
+            $('#tablaEntrada').addEventListener('input', (e)=>{
+              const row = e.target.closest('tr'); if(!row) return; const idx = Array.from(row.parentNode.children).indexOf(row);
+              tempLineas[idx].account = row.querySelector('.account').value;
+              tempLineas[idx].debe = parse(row.querySelector('.debe').value);
+              tempLineas[idx].haber = parse(row.querySelector('.haber').value);
+              if(tempLineas[idx].debe>0) { row.querySelector('.haber').value = 0; tempLineas[idx].haber=0; }
+              if(tempLineas[idx].haber>0){ row.querySelector('.debe').value = 0; tempLineas[idx].debe=0; }
+              totalesEntrada();
+            });
+            $('#tablaEntrada').addEventListener('click', (e)=>{ if(e.target.classList.contains('del')){ const row = e.target.closest('tr'); const idx = Array.from(row.parentNode.children).indexOf(row); tempLineas.splice(idx,1); renderEntrada(); } });
 
-    $('#addAsiento').onclick = ()=>{
-      const fecha = $('#jeDate').value || new Date().toISOString().slice(0,10);
-      const concepto = $('#jeConcepto').value.trim() || 'Sin concepto';
-      const rows = $$('#tablaEntrada tbody tr');
-      if(rows.length<2) return alert('Agregá al menos dos líneas');
-      let d=0,h=0; const lineas = [];
-      for(const r of rows){
-        const account = r.querySelector('.account').value;
-        const debe = parse(r.querySelector('.debe').value);
-        const haber = parse(r.querySelector('.haber').value);
-        if(debe===0 && haber===0) continue;
-        lineas.push({account, debe, haber}); d+=debe; h+=haber;
-      }
-      if(lineas.length<2) return alert('Completá importes');
-      if(Math.abs(d-h) > 0.005) return alert('El asiento no está cuadrado');
-      asientos.push({fecha, concepto, lineas});
-      tempLineas = []; $('#jeConcepto').value=''; renderEntrada(); renderDiario(); renderTodo(); store.save();
-    };
+            $('#addAsiento').onclick = ()=>{
+              const fecha = $('#jeDate').value || new Date().toISOString().slice(0,10);
+              const concepto = $('#jeConcepto').value.trim() || 'Sin concepto';
+              const rows = $$('#tablaEntrada tbody tr');
+              if(rows.length<2) return alert('Agregá al menos dos líneas');
+              let d=0,h=0; const lineas = [];
+              for(const r of rows){
+                const account = r.querySelector('.account').value;
+                const debe = parse(r.querySelector('.debe').value);
+                const haber = parse(r.querySelector('.haber').value);
+                if(debe===0 && haber===0) continue;
+                lineas.push({account, debe, haber}); d+=debe; h+=haber;
+              }
+              if(lineas.length<2) return alert('Completá importes');
+              if(Math.abs(d-h) > 0.005) return alert('El asiento no está cuadrado');
+              asientos.push({fecha, concepto, lineas});
+              tempLineas = []; $('#jeConcepto').value=''; renderEntrada(); renderDiario(); renderTodo(); store.save();
+            };
 
-    function renderDiario(){
-      const tb = $('#tablaDiario tbody'); tb.innerHTML='';
-      const sorted = [...asientos].sort((a,b)=> a.fecha.localeCompare(b.fecha));
-      sorted.forEach((a,idx)=>{
-        const totalD = a.lineas.reduce((s,l)=>s+l.debe,0);
-        const totalH = a.lineas.reduce((s,l)=>s+l.haber,0);
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${a.fecha}</td><td>${a.concepto}</td><td class="monospace">${fmt(totalD)}</td><td class="monospace">${fmt(totalH)}</td>
-          <td><button class="btn ghost ver" data-i="${idx}">Ver</button> <button class="btn ghost danger" data-del="${idx}">Borrar</button></td>`;
-        tb.appendChild(tr);
-        // detalle
-        const tr2 = document.createElement('tr');
-        const det = a.lineas.map(l=>{
-          const acc = cuentas.find(c=>c.code===l.account);
-          return `${acc? acc.code+ ' ' + acc.name : l.account}: ${l.debe? 'Debe '+fmt(l.debe) : 'Haber '+fmt(l.haber)}`;
-        }).join('<br/>');
-        tr2.innerHTML = `<td></td><td colspan="4" class="hint">${det}</td>`;
-        tb.appendChild(tr2);
-      });
-    }
+            function renderDiario(){
+              const tb = $('#tablaDiario tbody'); tb.innerHTML='';
+              const sorted = [...asientos].sort((a,b)=> a.fecha.localeCompare(b.fecha));
+              sorted.forEach((a,idx)=>{
+                const totalD = a.lineas.reduce((s,l)=>s+l.debe,0);
+                const totalH = a.lineas.reduce((s,l)=>s+l.haber,0);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                  <td>${a.fecha}</td>
+                  <td>${a.concepto}</td>
+                  <td class="monospace">${fmt(totalD)}</td>
+                  <td class="monospace">${fmt(totalH)}</td>
+                  <td>
+                    <button class="btn ghost ver" data-i="${idx}">Ver</button> 
+                    <button class="btn ghost danger" onclick="window.eliminarAsiento(${idx}); return false;">Borrar</button>
+                  </td>`;
+                tb.appendChild(tr);
+                // detalle
+                const tr2 = document.createElement('tr');
+                const det = a.lineas.map(l=>{
+                  const acc = cuentas.find(c=>c.code===l.account);
+                  return `${acc? acc.code+ ' ' + acc.name : l.account}: ${l.debe? 'Debe '+fmt(l.debe) : 'Haber '+fmt(l.haber)}`;
+                }).join('<br/>');
+                tr2.innerHTML = `<td></td><td colspan="4" class="hint">${det}</td>`;
+                tb.appendChild(tr2);
+              });
+            }
 
-    $('#tablaDiario').addEventListener('click', (e)=>{
-      const del = e.target?.dataset?.del; if(del){ asientos.splice(Number(del),1); renderDiario(); renderTodo(); store.save(); return; }
-    });
+            // Función para manejar la eliminación de asientos (se asigna a window para que sea accesible globalmente)
+            window.eliminarAsiento = function(index) {
+              console.log('Función eliminarAsiento llamada con índice:', index);
+              if (confirm('¿Estás seguro de que deseas eliminar este asiento? Esta acción no se puede deshacer.')) { 
+                console.log('Confirmado, eliminando asiento en índice:', index);
+                // Eliminar el asiento del array
+                asientos.splice(index, 1); 
+        
+                // Volver a renderizar las vistas
+                renderDiario(); 
+                renderTodo(); 
+        
+                // Guardar cambios
+                store.save();
+        
+                console.log('Asiento eliminado correctamente');
+                // Mostrar notificación
+                alert('El asiento ha sido eliminado correctamente.');
+              }
+            };
 
-    // --- Posting al Mayor ---
-    function postMayor(){
-      const ledger = {}; // code -> {movs:[{fecha, concepto, debe, haber, saldo}], saldo}
-      for(const c of cuentas){ ledger[c.code] = {acc:c, movs:[], saldo:0}; }
-      // ordenar asientos por fecha
-      const sorted = [...asientos].sort((a,b)=> a.fecha.localeCompare(b.fecha));
-      for(const a of sorted){
-        for(const l of a.lineas){
-          const ent = ledger[l.account]; if(!ent) continue;
-          const nb = normal[ent.acc.type];
-          let saldo = ent.saldo;
-          if(l.debe){ saldo += (nb==='D'? l.debe : -l.debe); }
-          if(l.haber){ saldo += (nb==='H'? l.haber : -l.haber); }
-          ent.movs.push({fecha:a.fecha, concepto:a.concepto, debe:l.debe, haber:l.haber, saldo});
-          ent.saldo = saldo;
-        }
-      }
-      return ledger;
-    }
+            // --- Posting al Mayor ---
+            function postMayor(){
+              const ledger = {}; // code -> {movs:[{fecha, concepto, debe, haber, saldo}], saldo}
+              for(const c of cuentas){ ledger[c.code] = {acc:c, movs:[], saldo:0}; }
+              // ordenar asientos por fecha
+              const sorted = [...asientos].sort((a,b)=> a.fecha.localeCompare(b.fecha));
+              for(const a of sorted){
+                for(const l of a.lineas){
+                  const ent = ledger[l.account]; if(!ent) continue;
+                  const nb = normal[ent.acc.type];
+                  let saldo = ent.saldo;
+                  if(l.debe){ saldo += (nb==='D'? l.debe : -l.debe); }
+                  if(l.haber){ saldo += (nb==='H'? l.haber : -l.haber); }
+                  ent.movs.push({fecha:a.fecha, concepto:a.concepto, debe:l.debe, haber:l.haber, saldo});
+                  ent.saldo = saldo;
+                }
+              }
+              return ledger;
+            }
 
-    function renderMayor(){
-      const code = $('#selMayor').value; const tb = $('#tablaMayor tbody'); tb.innerHTML='';
-      if(!code){ $('#saldoInfo').textContent='—'; return; }
-      const ledger = postMayor(); const ent = ledger[code];
-      if(!ent){ $('#saldoInfo').textContent='—'; return; }
-      ent.movs.forEach(m=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${m.fecha}</td><td>${m.concepto}</td><td class="monospace">${m.debe?fmt(m.debe):''}</td><td class="monospace">${m.haber?fmt(m.haber):''}</td><td class="monospace">${fmt(m.saldo)}</td>`;
-        tb.appendChild(tr);
-      });
-      const side = normal[ent.acc.type]==='D' ? 'Deudor' : 'Acreedor';
-      $('#saldoInfo').textContent = `Saldo ${side}: ${fmt(Math.abs(ent.saldo))}`;
-    }
+            function renderMayor(){
+              const code = $('#selMayor').value; const tb = $('#tablaMayor tbody'); tb.innerHTML='';
+              if(!code){ $('#saldoInfo').textContent='—'; return; }
+              const ledger = postMayor(); const ent = ledger[code];
+              if(!ent){ $('#saldoInfo').textContent='—'; return; }
+              ent.movs.forEach(m=>{
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${m.fecha}</td><td>${m.concepto}</td><td class="monospace">${m.debe?fmt(m.debe):''}</td><td class="monospace">${m.haber?fmt(m.haber):''}</td><td class="monospace">${fmt(m.saldo)}</td>`;
+                tb.appendChild(tr);
+              });
+              const side = normal[ent.acc.type]==='D' ? 'Deudor' : 'Acreedor';
+              $('#saldoInfo').textContent = `Saldo ${side}: ${fmt(Math.abs(ent.saldo))}`;
+            }
 
-    $('#selMayor').onchange = renderMayor;
-    $('#repostBtn').onclick = renderMayor;
+            $('#selMayor').onchange = renderMayor;
+            $('#repostBtn').onclick = renderMayor;
 
-    // --- Balance de Comprobación ---
-    function renderTrial(){
-      const ledger = postMayor();
-      const tb = $('#tablaTrial tbody'); tb.innerHTML='';
-      let td=0, th=0;
-      for(const code of Object.keys(ledger).sort()){
-        const ent = ledger[code]; if(!ent.acc) continue;
-        const nb = normal[ent.acc.type];
-        const saldo = ent.saldo; // puede ser + o - según nb
-        let deudor=0, acreedor=0;
-        if(nb==='D') { if(saldo>=0) deudor = saldo; else acreedor = -saldo; }
-        else { if(saldo>=0) acreedor = saldo; else deudor = -saldo; }
-        td += deudor; th += acreedor;
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="monospace">${ent.acc.code}</td><td>${ent.acc.name}</td><td class="monospace">${deudor?fmt(deudor):''}</td><td class="monospace">${acreedor?fmt(acreedor):''}</td>`;
-        tb.appendChild(tr);
-      }
-      $('#trialDebe').textContent = fmt(td); $('#trialHaber').textContent = fmt(th);
-      const chk = $('#chkBalance');
-      chk.textContent = (Math.abs(td-th) < 0.005) ? 'Cuadra ✔' : 'No cuadra ✖';
-      chk.className = 'pill ' + ((Math.abs(td-th) < 0.005)? 'ok':'bad');
-    }
+            // --- Balance de Comprobación ---
+            function renderTrial(){
+              const ledger = postMayor();
+              const tb = $('#tablaTrial tbody'); tb.innerHTML='';
+              let td=0, th=0;
+              for(const code of Object.keys(ledger).sort()){
+                const ent = ledger[code]; if(!ent.acc) continue;
+                const nb = normal[ent.acc.type];
+                const saldo = ent.saldo; // puede ser + o - según nb
+                let deudor=0, acreedor=0;
+                if(nb==='D') { if(saldo>=0) deudor = saldo; else acreedor = -saldo; }
+                else { if(saldo>=0) acreedor = saldo; else deudor = -saldo; }
+                td += deudor; th += acreedor;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="monospace">${ent.acc.code}</td><td>${ent.acc.name}</td><td class="monospace">${deudor?fmt(deudor):''}</td><td class="monospace">${acreedor?fmt(acreedor):''}</td>`;
+                tb.appendChild(tr);
+              }
+              $('#trialDebe').textContent = fmt(td); $('#trialHaber').textContent = fmt(th);
+              const chk = $('#chkBalance');
+              chk.textContent = (Math.abs(td-th) < 0.005) ? 'Cuadra ✔' : 'No cuadra ✖';
+              chk.className = 'pill ' + ((Math.abs(td-th) < 0.005)? 'ok':'bad');
+            }
 
-    // --- Estados Financieros ---
-    function renderEstados(){
-      const ledger = postMayor();
-      // Ingresos / Gastos → ER
-      let ingresos=0, gastos=0;
-      const erBody = $('#tablaER tbody'); erBody.innerHTML='';
-      for(const code of Object.keys(ledger)){
-        const {acc, saldo} = ledger[code]; if(!acc) continue;
-        if(acc.type==='Ingreso') ingresos += (normal[acc.type]==='H'? saldo : -saldo);
-        if(acc.type==='Gasto') gastos += (normal[acc.type]==='D'? saldo : -saldo);
-      }
-      const rowsER = [
-        ['Ingresos', ingresos],
-        ['Gastos', -gastos]
-      ];
-      rowsER.forEach(([n,v])=>{
-        const tr = document.createElement('tr'); tr.innerHTML = `<td>${n}</td><td class="monospace">${fmt(v)}</td>`; erBody.appendChild(tr);
-      });
-      const utilidad = ingresos + gastos; // gastos es negativo
-      $('#erUtil').textContent = fmt(utilidad);
+            // --- Estados Financieros ---
+            function renderEstados(){
+              const ledger = postMayor();
+              // Ingresos / Gastos → ER
+              let ingresos=0, gastos=0;
+              const erBody = $('#tablaER tbody'); erBody.innerHTML='';
+              for(const code of Object.keys(ledger)){
+                const {acc, saldo} = ledger[code]; if(!acc) continue;
+                if(acc.type==='Ingreso') ingresos += (normal[acc.type]==='H'? saldo : -saldo);
+                if(acc.type==='Gasto') gastos += (normal[acc.type]==='D'? saldo : -saldo);
+              }
+              const rowsER = [
+                ['Ingresos', ingresos],
+                ['Gastos', -gastos]
+              ];
+              rowsER.forEach(([n,v])=>{
+                const tr = document.createElement('tr'); tr.innerHTML = `<td>${n}</td><td class="monospace">${fmt(v)}</td>`; erBody.appendChild(tr);
+              });
+              const utilidad = ingresos + gastos; // gastos es negativo
+              $('#erUtil').textContent = fmt(utilidad);
 
-      // Balance General: Activo vs Pasivo+Patrimonio (+ utilidad del período)
-      let activo=0, pasivo=0, patrimonio=0;
-      for(const code of Object.keys(ledger)){
-        const {acc, saldo} = ledger[code]; if(!acc) continue;
-        if(acc.type==='Activo') activo += (normal[acc.type]==='D'? saldo : -saldo);
-        if(acc.type==='Pasivo') pasivo += (normal[acc.type]==='H'? saldo : -saldo);
-        if(acc.type==='Patrimonio') patrimonio += (normal[acc.type]==='H'? saldo : -saldo);
-      }
-      const bgBody = $('#tablaBG tbody'); bgBody.innerHTML='';
-      const push = (n,v)=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${n}</td><td class="monospace">${fmt(v)}</td>`; bgBody.appendChild(tr); };
-      push('Activo', activo);
-      push('Pasivo', pasivo);
-      push('Patrimonio (antes de utilidad)', patrimonio);
-      push('Utilidad del período', utilidad);
-      $('#bgAct').textContent = fmt(activo);
-      $('#bgPP').textContent = fmt(pasivo + patrimonio + utilidad);
-    }
+              // Balance General: Activo vs Pasivo+Patrimonio (+ utilidad del período)
+              let activo=0, pasivo=0, patrimonio=0;
+              for(const code of Object.keys(ledger)){
+                const {acc, saldo} = ledger[code]; if(!acc) continue;
+                if(acc.type==='Activo') activo += (normal[acc.type]==='D'? saldo : -saldo);
+                if(acc.type==='Pasivo') pasivo += (normal[acc.type]==='H'? saldo : -saldo);
+                if(acc.type==='Patrimonio') patrimonio += (normal[acc.type]==='H'? saldo : -saldo);
+              }
+              const bgBody = $('#tablaBG tbody'); bgBody.innerHTML='';
+              const push = (n,v)=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${n}</td><td class="monospace">${fmt(v)}</td>`; bgBody.appendChild(tr); };
+              push('Activo', activo);
+              push('Pasivo', pasivo);
+              push('Patrimonio (antes de utilidad)', patrimonio);
+              push('Utilidad del período', utilidad);
+              $('#bgAct').textContent = fmt(activo);
+              $('#bgPP').textContent = fmt(pasivo + patrimonio + utilidad);
+            }
 
-    // --- Render maestro ---
-    function renderTodo(){}
+            // --- Render maestro ---
+            function renderTodo(){}
 
-    // Inicializar
-    store.load(); renderCuentas(); renderDiario(); renderEntrada(); renderTodo();
-  </script>
-</body>
-</html>
+            // Inicializar
+            function init() {
+              store.load(); 
+              renderCuentas(); 
+              renderDiario(); 
+              renderEntrada(); 
+              renderTodo();
+            }
+    
+            // Iniciar cuando el DOM esté listo
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', init);
+            } else {
+              init();
+            }
+          </script>
+        </body>
+        </html>
