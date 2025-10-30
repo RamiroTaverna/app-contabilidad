@@ -2,25 +2,6 @@
 {% block title %}Registrarse{% endblock %}
 {% block content %}
 <h1>Registrarse</h1>
-<form method="post">
-  {{ form.csrf_token }}
-  <div>
-    {{ form.nombre.label }}<br>
-    {{ form.nombre(size=40) }}
-  </div>
-  <div>
-    {{ form.email.label }}<br>
-    {{ form.email(size=40) }}
-  </div>
-  <div>
-    {{ form.password.label }}<br>
-    {{ form.password(size=40) }}
-  </div>
-  <div style="margin-top: .5rem;">
-    {{ form.submit() }}
-  </div>
-</form>
-<p style="margin-top:1rem;">
-  Ya tienes cuenta? <a href="{{ url_for('auth.login_form') }}">Ingresar</a> o <a href="{{ url_for('auth.login') }}">Google</a>.
-</p>
+<p>El registro a través de la web está deshabilitado. Por favor, utiliza tu cuenta de Google para registrarte e iniciar sesión.</p>
+<p><a class="btn primary" href="{{ url_for('auth.login') }}">Ingresar con Google</a></p>
 {% endblock %}

@@ -4,7 +4,8 @@
 <div class="container">
   {% if user %}
     <h1>Hola, {{ user.nombre }}</h1>
-    <p>Estás logueado como <strong>{{ user.rol.value }}</strong>.</p>
+  {%- set _role_label = 'dueño' if user.rol.value == 'dueno' else user.rol.value -%}
+  <p>Estás logueado como <strong>{{ _role_label }}</strong>.</p>
 
     <div class="actions" style="margin-top:1.5rem;">
       <a class="btn" href="{{ url_for('companies.list_companies') }}">Ver Empresas</a>

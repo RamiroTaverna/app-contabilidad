@@ -1,40 +1,53 @@
-:root{ --bg:#0b0c10; --card:#12131a; --fg:#e8ebf1; --muted:#9aa3b2; --primary:#4f7cff; --accent:#37d39b; --danger:#ff5d6c; --border:#1f2330; }
+:root{ /* White + Bordó theme */
+	--bg: #ffffff;
+	--card: #ffffff;
+	--fg: #000000;
+	--muted: #555555;
+	--primary: #7B1622; /* bordo as primary */
+	--accent: #7B1622;
+	--danger: #d64550;
+	--border: #e9e1e1;
+}
 *{box-sizing:border-box}
 .msc-body{background:var(--bg);color:var(--fg);}
-.msc-header{position:sticky;top:0;background:linear-gradient(180deg,#0f1117 0%, #0c0e13 100%);border-bottom:1px solid var(--border);z-index:5}
+.msc-header{position:sticky;top:0;background:linear-gradient(180deg,#ffffff 0%, #ffffff 100%);border-bottom:3px solid var(--primary);z-index:5}
 .msc-wrap{max-width:1100px;margin:0 auto;padding:18px}
-.msc-title{margin:0;font-size:20px;letter-spacing:.3px}
+#tabs, #rep-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px }
+#tabs button, #rep-tabs button { background:#fff; color:var(--fg); border:1px solid var(--border); padding:8px 12px; border-radius:10px; cursor:pointer }
+#tabs button.active, #rep-tabs button.active { background:var(--primary); border-color:transparent; color:white }
+
+.msc-title{margin:0;font-size:20px;letter-spacing:.3px;font-weight:700}
 .msc-sub{color:var(--muted);font-size:13px;margin-top:6px}
 #tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 #tabs button{background:#12131a;color:var(--fg);border:1px solid var(--border);padding:8px 12px;border-radius:10px;cursor:pointer}
 #tabs button.active{background:var(--primary);border-color:transparent;color:white}
 
 .msc-main{max-width:1100px;margin:18px auto;padding:0 18px 40px;display:grid;gap:16px}
-section{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+section{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 20px rgba(11,11,12,0.04)}
 section header{position:unset;background:none;border:none}
 section .title{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
-section h2{margin:0;font-size:16px}
+section h2{margin:0;font-size:16px;font-weight:700}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
-.btn{background:#171926;border:1px solid var(--border);color:var(--fg);padding:8px 12px;border-radius:10px;cursor:pointer}
+.btn{background:var(--primary);border:1px solid var(--primary);color:white;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
 .btn.primary{background:var(--primary);color:#fff;border-color:transparent}
-.btn.accent{background:var(--accent);color:#072615;border-color:transparent}
-.btn.danger{background:var(--danger);color:#300;border-color:transparent}
-.btn.ghost{background:transparent;border-color:var(--border)}
+.btn.accent{background:var(--accent);color:#fff;border-color:transparent}
+.btn.danger{background:var(--danger);color:#fff;border-color:transparent}
+.btn.ghost{background:transparent;border-color:var(--border);color:var(--muted)}
 .grid{display:grid;gap:12px}
 .two{grid-template-columns:1fr 1fr}
 .three{grid-template-columns:1fr 1fr 1fr}
 
 label{font-size:12px;color:var(--muted)}
-input, select, textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#0f1117;color:var(--fg)}
+input, select, textarea{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--fg)}
 input[type="number"]{text-align:right}
 
 table{width:100%;border-collapse:collapse}
 th, td{padding:10px;border-bottom:1px solid var(--border);font-size:14px}
-th{color:#b8c0d4;text-align:left;background:#10131a;position:sticky;top:0}
-tr:hover td{background:#0f131c}
+th{color:var(--muted);text-align:left;background:#faf7f7;position:sticky;top:0}
+tr:hover td{background:#fff}
 tfoot td{font-weight:600}
 
-.pill{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--border);background:#0f1117;color:#b8c0d4}
+.pill{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--border);background:var(--primary);color:white;font-weight:700}
 .ok{color:#0ee28b}
 .bad{color:#ff808b}
 
@@ -43,3 +56,23 @@ tfoot td{font-weight:600}
 
 .footer{color:var(--muted);text-align:center;font-size:12px;margin-top:8px}
 .hint{color:var(--muted);font-size:12px}
+
+/* Footer (mini) — waves and layout for accounting pages */
+.site-footer{ position:relative; margin-top:1rem; color:var(--fg); font-size:13px; }
+.footer-waves{ position:relative; line-height:0; }
+.footer-waves svg{ display:block; width:100%; height:48px; }
+.footer-content{ padding:.5rem 0 0.9rem; background:transparent; }
+.footer-grid{ display:flex; gap:1rem; align-items:center; justify-content:space-between; }
+.footer-col{ color:var(--fg); }
+.footer-brand{ font-weight:700; font-size:.95rem; margin-bottom:0; }
+.footer-nav{ display:flex; flex-direction:row; gap:.9rem; align-items:center; }
+.footer-nav a{ color:var(--muted); text-decoration:none; font-size:0.92rem; }
+.footer-nav a:hover{ color:var(--fg); text-decoration:underline; }
+.footer-right{ text-align:right; font-size:0.92rem; }
+.site-footer .hint{ color:var(--muted); font-size:0.8rem; }
+
+@media (max-width:900px){
+	.footer-grid{ flex-direction:column; align-items:flex-start; gap:.4rem; }
+	.footer-right{ text-align:left; }
+	.footer-waves svg{ height:40px; }
+}

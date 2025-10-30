@@ -138,35 +138,18 @@ def devlogin():
 
 @bp.route("/login_form", methods=["GET", "POST"])
 def login_form():
-    form = LoginForm()
-    if form.validate_on_submit():
-        u = Usuario.query.filter_by(correo=form.email.data.lower()).first()
-        if not u or not u.contrasena_hash or not check_password_hash(u.contrasena_hash, form.password.data):
-            return redirect(url_for("auth.login_form"))
-        session["uid"] = u.id
-        empresa_opt = (form.empresa.data or "").strip()
-        if empresa_opt:
-            session["login_empresa"] = empresa_opt
-        if u.rol == Rol.admin:
-            return redirect(url_for("admin.index"))
-        return redirect(url_for("home"))
-    return render_template("auth/login.html", form=form)
+    # For security/UX: use Google OAuth interface instead of local inputs.
+    # Redirect to the OAuth login flow. Preserve ?next= if present.
+    next_url = request.args.get("next")
+    if next_url:
+        session["login_next"] = next_url
+    return redirect(url_for("auth.login", next=next_url))
 
 @bp.route("/register", methods=["GET", "POST"])
 def register():
-    form = RegisterForm()
-    if form.validate_on_submit():
-        email = form.email.data.lower()
-        if Usuario.query.filter_by(correo=email).first():
-            return redirect(url_for("auth.register"))
-        u = Usuario(
-            nombre=form.nombre.data.strip(),
-            correo=email,
-            contrasena_hash=generate_password_hash(form.password.data),
-            rol=Rol.empleado,
-        )
-        db.session.add(u)
-        db.session.commit()
-        session["uid"] = u.id
-        return redirect(url_for("home"))
-    return render_template("auth/register.html", form=form)
+    # Registration through the web form is disabled in favor of Google OAuth.
+    # Redirect users to the Google login flow which will create accounts on callback.
+    next_url = request.args.get("next")
+    if next_url:
+        session["login_next"] = next_url
+    return redirect(url_for("auth.login", next=next_url))
