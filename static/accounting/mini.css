@@ -1,34 +1,31 @@
-:root{ /* White + Bordó theme */
-	--bg: #ffffff;
-	--card: #ffffff;
-	--fg: #000000;
-	--muted: #555555;
+:root{ /* Dark bordo glass */
+	--bg: transparent;
+	--card: rgba(255,255,255,0.05);
+	--fg: #f6f2f2;
+	--muted: rgba(255,255,255,0.65);
 	--primary: #7B1622; /* bordo as primary */
 	--accent: #7B1622;
 	--danger: #d64550;
-	--border: #e9e1e1;
+	--border: rgba(255,255,255,0.18);
 }
 *{box-sizing:border-box}
-.msc-body{background:var(--bg);color:var(--fg);}
-.msc-header{position:sticky;top:0;background:linear-gradient(180deg,#ffffff 0%, #ffffff 100%);border-bottom:3px solid var(--primary);z-index:5}
+.msc-body{background:transparent;color:var(--fg);}
+.msc-header{position:sticky;top:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.1);z-index:5}
 .msc-wrap{max-width:1100px;margin:0 auto;padding:18px}
 #tabs, #rep-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px }
-#tabs button, #rep-tabs button { background:#fff; color:var(--fg); border:1px solid var(--border); padding:8px 12px; border-radius:10px; cursor:pointer }
+#tabs button, #rep-tabs button { background:rgba(255,255,255,0.08); color:var(--fg); border:1px solid var(--border); padding:8px 12px; border-radius:10px; cursor:pointer; }
 #tabs button.active, #rep-tabs button.active { background:var(--primary); border-color:transparent; color:white }
 
 .msc-title{margin:0;font-size:20px;letter-spacing:.3px;font-weight:700}
 .msc-sub{color:var(--muted);font-size:13px;margin-top:6px}
-#tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-#tabs button{background:#12131a;color:var(--fg);border:1px solid var(--border);padding:8px 12px;border-radius:10px;cursor:pointer}
-#tabs button.active{background:var(--primary);border-color:transparent;color:white}
-
-.msc-main{max-width:1100px;margin:18px auto;padding:0 18px 40px;display:grid;gap:16px}
-section{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 20px rgba(11,11,12,0.04)}
+.msc-main{max-width:1100px;margin:24px auto;padding:0 18px 40px;display:grid;gap:16px}
+section{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 25px 45px rgba(0,0,0,0.25);backdrop-filter:blur(14px)}
 section header{position:unset;background:none;border:none}
 section .title{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
 section h2{margin:0;font-size:16px;font-weight:700}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
-.btn{background:var(--primary);border:1px solid var(--primary);color:white;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+.btn{background:linear-gradient(135deg,#c73745,#7B1622);background-size:220% auto;border:1px solid transparent;color:white;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;transition:background-position .35s ease,color .2s ease;box-shadow:none}
+.btn:hover,.btn:focus-visible{background-position:right center;color:var(--primary);box-shadow:none}
 .btn.primary{background:var(--primary);color:#fff;border-color:transparent}
 .btn.accent{background:var(--accent);color:#fff;border-color:transparent}
 .btn.danger{background:var(--danger);color:#fff;border-color:transparent}
@@ -38,13 +35,13 @@ section h2{margin:0;font-size:16px;font-weight:700}
 .three{grid-template-columns:1fr 1fr 1fr}
 
 label{font-size:12px;color:var(--muted)}
-input, select, textarea{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--fg)}
+input, select, textarea{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.08);color:var(--fg)}
 input[type="number"]{text-align:right}
 
 table{width:100%;border-collapse:collapse}
 th, td{padding:10px;border-bottom:1px solid var(--border);font-size:14px}
-th{color:var(--muted);text-align:left;background:#faf7f7;position:sticky;top:0}
-tr:hover td{background:#fff}
+th{color:var(--muted);text-align:left;background:rgba(255,255,255,0.04);position:sticky;top:0}
+tr:hover td{background:rgba(255,255,255,0.04)}
 tfoot td{font-weight:600}
 
 .pill{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--border);background:var(--primary);color:white;font-weight:700}
@@ -59,15 +56,13 @@ tfoot td{font-weight:600}
 
 /* Footer (mini) — waves and layout for accounting pages */
 .site-footer{ position:relative; margin-top:1rem; color:var(--fg); font-size:13px; }
-.footer-waves{ position:relative; line-height:0; }
-.footer-waves svg{ display:block; width:100%; height:48px; }
-.footer-content{ padding:.5rem 0 0.9rem; background:transparent; }
+.footer-content{ padding:1rem 0 1.2rem; background:rgba(0,0,0,0.4); border-top:1px solid rgba(255,255,255,0.08); }
 .footer-grid{ display:flex; gap:1rem; align-items:center; justify-content:space-between; }
 .footer-col{ color:var(--fg); }
 .footer-brand{ font-weight:700; font-size:.95rem; margin-bottom:0; }
 .footer-nav{ display:flex; flex-direction:row; gap:.9rem; align-items:center; }
 .footer-nav a{ color:var(--muted); text-decoration:none; font-size:0.92rem; }
-.footer-nav a:hover{ color:var(--fg); text-decoration:underline; }
+.footer-nav a:hover{ color:var(--fg); text-decoration:none; }
 .footer-right{ text-align:right; font-size:0.92rem; }
 .site-footer .hint{ color:var(--muted); font-size:0.8rem; }
 

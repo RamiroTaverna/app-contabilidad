@@ -3,6 +3,7 @@
 {% block content %}
 <h1>Nuevo Asiento</h1>
 <form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   {% if id_empresa %}
     <input type="hidden" name="id_empresa" value="{{ id_empresa }}">
   {% endif %}

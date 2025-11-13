@@ -14,4 +14,5 @@ class Config:
     OAUTH_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://127.0.0.1:5000/auth/callback")
 
     GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
-    DEV_FAKE_LOGIN = True
+    DEV_FAKE_LOGIN = os.getenv("DEV_FAKE_LOGIN", "false").lower() in ("1", "true", "yes")
+

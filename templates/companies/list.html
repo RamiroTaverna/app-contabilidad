@@ -26,6 +26,7 @@
     <div class="actions">
       {% if c.puede_unirse %}
         <form method="post" action="{{ url_for('companies.join_company', id_empresa=c.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn">Entrar</button>
         </form>
       {% elif c.lleno %}
@@ -45,6 +46,7 @@
 {% if user and user.rol.value in ['empleado','dueno'] %}
   <h2 style="margin-top:2rem">Crear empresa</h2>
   <form class="create-form" method="post" action="{{ url_for('companies.create_company') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input name="nombre" placeholder="Nombre de la empresa" required>
     <button class="btn">Crear</button>
   </form>

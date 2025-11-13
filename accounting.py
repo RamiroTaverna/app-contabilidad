@@ -98,7 +98,11 @@ def _empresa_actual_from_request():
     if not getattr(g, "user", None):
         abort(401)
     if g.user.rol == Rol.docente:
-        emp = request.args.get("empresa", type=int) or request.json.get("empresa") if request.is_json else None
+        emp = request.args.get("empresa", type=int)
+        if emp:
+            return emp
+        payload = request.get_json(silent=True) if request.is_json else None
+        emp = (payload or {}).get("empresa")
         if not emp:
             abort(400, description="Se requiere parametro empresa para rol docente")
         return emp
@@ -106,6 +110,18 @@ def _empresa_actual_from_request():
     if not emp:
         abort(400, description="Usuario sin empresa asociada")
     return emp
+
+def _ensure_owner_access(empresa_id: int):
+    """Solo el dueño (o admin) de la empresa puede mutar sus datos contables."""
+    if not getattr(g, "user", None):
+        abort(401)
+    if g.user.rol == Rol.admin:
+        return
+    if g.user.rol != Rol.dueno:
+        abort(403, description="Solo el dueño puede modificar la contabilidad.")
+    empresa = Empresa.query.filter_by(id_gerente=g.user.id).first()
+    if not empresa or empresa.id_empresa != empresa_id:
+        abort(403, description="Solo el dueño de la empresa puede realizar esta acción.")
 
 def _detalle_to_dict(d: DetalleAsiento):
     return dict(
@@ -171,6 +187,7 @@ def api_cuentas_create():
         abort(400, description="JSON requerido")
     payload = request.get_json()
     empresa_id = _empresa_actual_from_request()
+    _ensure_owner_access(empresa_id)
     # Datos de entrada: codigo, nombre, tipo (Activo/Pasivo/Patrimonio/Ingreso/Gasto)
     codigo = (payload.get("codigo") or "").strip().upper()
     nombre = (payload.get("nombre") or "").strip().upper()
@@ -258,6 +275,7 @@ def api_asientos_create():
         abort(400, description="JSON requerido")
     payload = request.get_json()
     empresa_id = _empresa_actual_from_request()
+    _ensure_owner_access(empresa_id)
     from datetime import date
     try:
         fecha = date.fromisoformat(payload.get("fecha") or date.today().isoformat())
@@ -271,6 +289,7 @@ def api_asientos_create():
     suma_debe = Decimal("0")
     suma_haber = Decimal("0")
     detalles = []
+    cuenta_ids = set()
     for r in renglones:
         c_id = r.get("id_cuenta")
         t = r.get("tipo")
@@ -292,8 +311,17 @@ def api_asientos_create():
         else:
             suma_haber += monto
         detalles.append((c_id_int, t, monto))
+        cuenta_ids.add(c_id_int)
     if suma_debe == 0 or suma_haber == 0 or suma_debe != suma_haber:
         abort(400, description="La partida debe estar balanceada (Debe = Haber > 0)")
+    if cuenta_ids:
+        cuentas = PlanCuenta.query.filter(PlanCuenta.id_cuenta.in_(cuenta_ids)).all()
+        cuentas_map = {c.id_cuenta: c for c in cuentas}
+        if len(cuentas_map) != len(cuenta_ids):
+            abort(400, description="Alguna cuenta no existe.")
+        for c in cuentas_map.values():
+            if c.id_empresa != empresa_id:
+                abort(400, description="Solo se pueden usar cuentas de la empresa seleccionada.")
     # correlativo por empresa
     last_num = db.session.query(func.max(Asiento.num_asiento)).filter_by(id_empresa=empresa_id).scalar() or 0
     nuevo_num = last_num + 1
@@ -328,6 +356,29 @@ def api_asientos_create():
     except SQLAlchemyError as e:
         db.session.rollback()
         abort(500, description="Error al guardar el asiento")
+
+@bp.delete("/api/asientos/<int:asiento_id>")
+@login_required
+def api_asientos_delete(asiento_id: int):
+    empresa_id = _empresa_actual_from_request()
+    _ensure_owner_access(empresa_id)
+    asiento = Asiento.query.filter_by(id_asiento=asiento_id, id_empresa=empresa_id).first()
+    if not asiento:
+        abort(404, description="Asiento no encontrado")
+    try:
+        db.session.delete(asiento)
+        db.session.add(ChangeLog(
+            entidad="asiento",
+            id_entidad=asiento_id,
+            accion="delete",
+            id_usuario=g.user.id,
+            datos=f'{{"num":{asiento.num_asiento}}}',
+        ))
+        db.session.commit()
+        return jsonify({"status": "deleted"})
+    except SQLAlchemyError:
+        db.session.rollback()
+        abort(500, description="Error al eliminar el asiento")
 
 @bp.get("/api/mayor")
 @login_required
@@ -442,12 +493,22 @@ def api_estados():
     nb_map = {c.id_cuenta: _normal_side_for(c) for c in cuentas}
     txt_map = {c.id_cuenta: (" ".join(filter(None, [c.rubro, c.subrubro])).lower()) for c in cuentas}
     saldos = {c.id_cuenta: Decimal("0") for c in cuentas}
-    dets = (
+    q = (
         db.session.query(DetalleAsiento, Asiento)
         .join(Asiento, DetalleAsiento.id_asiento == Asiento.id_asiento)
         .filter(Asiento.id_empresa == empresa_id)
-        .all()
     )
+    desde_s = request.args.get("desde")
+    hasta_s = request.args.get("hasta")
+    from datetime import date as _date
+    try:
+        if desde_s:
+            q = q.filter(Asiento.fecha >= _date.fromisoformat(desde_s))
+        if hasta_s:
+            q = q.filter(Asiento.fecha <= _date.fromisoformat(hasta_s))
+    except Exception:
+        abort(400, description="Formato de fecha inválido. Use YYYY-MM-DD")
+    dets = q.all()
     for d, a in dets:
         nb = nb_map.get(d.id_cuenta, "D")
         if d.tipo == "debe":

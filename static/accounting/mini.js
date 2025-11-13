@@ -4,6 +4,14 @@
   const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
   const qs = new URLSearchParams(location.search);
   const empresa = (document.querySelector('.msc-body')?.dataset?.empresa) || qs.get('empresa') || '';
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  const csrfFetch = (url, opts = {}) => {
+    const headers = { ...(opts.headers || {}) };
+    if (csrfToken) {
+      headers['X-CSRFToken'] = csrfToken;
+    }
+    return fetch(url, { credentials: 'same-origin', ...opts, headers });
+  };
   let cuentas = [];
   let asientos = [];
   let tempLineas = [];
@@ -98,12 +106,11 @@
       }
 
       // Enviar petición al servidor para eliminar el asiento
-      const response = await fetch(`/accounting/api/asientos/${idAsiento}`, {
+      const response = await csrfFetch(`/accounting/api/asientos/${idAsiento}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-        },
-        credentials: 'same-origin'
+        }
       });
 
       if (!response.ok) {
@@ -212,7 +219,7 @@
           if (subrubro) payload.subrubro = subrubro;
           if (cod_subrubro) payload.cod_subrubro = cod_subrubro;
           if(empresa) payload.empresa = parseInt(empresa,10);
-          const res = await fetch('/accounting/api/cuentas', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body: JSON.stringify(payload) });
+          const res = await csrfFetch('/accounting/api/cuentas', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
           if(!res.ok){ const t = await res.text(); throw new Error(t); }
           $('#accCode').value=''; $('#accName').value=''; if($('#accSubCode')) $('#accSubCode').value=''; if($('#accSubName')) $('#accSubName').selectedIndex=0;
           await loadCuentas(); renderCuentas();
@@ -225,7 +232,7 @@
       tablaEntrada.addEventListener('input', (e)=>{ const row = e.target.closest('tr'); if(!row) return; const idx = Array.from(row.parentNode.children).indexOf(row); tempLineas[idx].id_cuenta = parseInt(row.querySelector('.account').value,10); tempLineas[idx].debe = parseNum(row.querySelector('.debe').value); tempLineas[idx].haber = parseNum(row.querySelector('.haber').value); if(tempLineas[idx].debe>0) { row.querySelector('.haber').value = 0; tempLineas[idx].haber=0; } if(tempLineas[idx].haber>0){ row.querySelector('.debe').value = 0; tempLineas[idx].debe=0; } totalesEntrada(); });
       tablaEntrada.addEventListener('click', (e)=>{ if(e.target.classList.contains('del')){ const row = e.target.closest('tr'); const idx = Array.from(row.parentNode.children).indexOf(row); tempLineas.splice(idx,1); renderEntrada(); } });
     }
-    const addAsiento = $('#addAsiento'); if(addAsiento){ addAsiento.onclick = async ()=>{ const fecha = $('#jeDate').value || new Date().toISOString().slice(0,10); const concepto = $('#jeConcepto').value.trim() || 'Sin concepto'; const rows = $$('#tablaEntrada tbody tr'); if(rows.length<2) return alert('Agregá al menos dos líneas'); let d=0,h=0; const renglones = []; for(const r of rows){ const id_cuenta = parseInt(r.querySelector('.account').value,10); const debe = parseNum(r.querySelector('.debe').value); const haber = parseNum(r.querySelector('.haber').value); if(debe===0 && haber===0) continue; const tipo = debe>0? 'debe':'haber'; const importe = debe>0? debe:haber; renglones.push({id_cuenta, tipo, importe}); d+=debe; h+=haber; } if(renglones.length<2) return alert('Completá importes'); if(Math.abs(d-h) > 0.005) return alert('El asiento no está cuadrado'); try{ const payload = { fecha, doc: '', leyenda: concepto, renglones }; if(empresa) payload.empresa = parseInt(empresa,10); const res = await fetch('/accounting/api/asientos', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body: JSON.stringify(payload) }); if(!res.ok){ const t = await res.text(); throw new Error(t); } await loadAsientos(); tempLineas = []; $('#jeConcepto').value=''; renderEntrada(); renderDiario(); renderTodo(); }catch(err){ alert('Error al guardar: '+err.message); } }; }
+    const addAsiento = $('#addAsiento'); if(addAsiento){ addAsiento.onclick = async ()=>{ const fecha = $('#jeDate').value || new Date().toISOString().slice(0,10); const concepto = $('#jeConcepto').value.trim() || 'Sin concepto'; const rows = $$('#tablaEntrada tbody tr'); if(rows.length<2) return alert('Agregá al menos dos líneas'); let d=0,h=0; const renglones = []; for(const r of rows){ const id_cuenta = parseInt(r.querySelector('.account').value,10); const debe = parseNum(r.querySelector('.debe').value); const haber = parseNum(r.querySelector('.haber').value); if(debe===0 && haber===0) continue; const tipo = debe>0? 'debe':'haber'; const importe = debe>0? debe:haber; renglones.push({id_cuenta, tipo, importe}); d+=debe; h+=haber; } if(renglones.length<2) return alert('Completá importes'); if(Math.abs(d-h) > 0.005) return alert('El asiento no está cuadrado'); try{ const payload = { fecha, doc: '', leyenda: concepto, renglones }; if(empresa) payload.empresa = parseInt(empresa,10); const res = await csrfFetch('/accounting/api/asientos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }); if(!res.ok){ const t = await res.text(); throw new Error(t); } await loadAsientos(); tempLineas = []; $('#jeConcepto').value=''; renderEntrada(); renderDiario(); renderTodo(); }catch(err){ alert('Error al guardar: '+err.message); } }; }
     // Mayor/Balance/Estados trasladados a Reportes
   }
 

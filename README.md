@@ -85,6 +85,13 @@ python app.py
 - `journal_list.html` y páginas relacionadas quedan como referencia, pero la navegación estándar ya usa `mini.html`.
 - Se recomienda progresivamente migrar la lógica embebida en `mini.html` a archivos en `static/` y a APIs REST para abandonar `localStorage`.
 
+## Cambios recientes
+
+- **Seguridad**: se habilitó CSRF global con `flask-wtf`. Todo formulario manual incluye `{{ csrf_token() }}` y los fetch del frontend agregan `X-CSRFToken`. Ajusta `DEV_FAKE_LOGIN=true` en tu `.env` si necesitas el `devlogin`.
+- **Roles**: solo el dueño (o un admin) puede crear/eliminar cuentas y asientos. El backend valida que las cuentas pertenezcan a la empresa antes de guardar y ahora expone `DELETE /accounting/api/asientos/<id>`.
+- **Reportes**: los filtros `?desde/?hasta` afectan tanto al PDF del Diario como a `/accounting/api/indices`. 
+- **Dependencias**: se añadió `xhtml2pdf` al `requirements.txt` y el esquema SQL ahora incluye el rol `admin` y la tabla `change_log`.
+
 ---
 
 ## Funcionalidades actuales

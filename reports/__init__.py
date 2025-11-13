@@ -49,14 +49,23 @@ def diario_export_pdf():
     if not emp_id:
         abort(400, description="Usuario sin empresa asociada")
     # Traer asientos con detalles
-    rows = (
+    q = (
         db.session.query(Asiento, DetalleAsiento, PlanCuenta)
         .outerjoin(DetalleAsiento, DetalleAsiento.id_asiento == Asiento.id_asiento)
         .outerjoin(PlanCuenta, PlanCuenta.id_cuenta == DetalleAsiento.id_cuenta)
         .filter(Asiento.id_empresa == emp_id)
-        .order_by(Asiento.fecha.asc(), Asiento.num_asiento.asc(), DetalleAsiento.id_detalle.asc())
-        .all()
     )
+    desde_s = request.args.get("desde")
+    hasta_s = request.args.get("hasta")
+    from datetime import date as _date
+    try:
+        if desde_s:
+            q = q.filter(Asiento.fecha >= _date.fromisoformat(desde_s))
+        if hasta_s:
+            q = q.filter(Asiento.fecha <= _date.fromisoformat(hasta_s))
+    except Exception:
+        abort(400, description="Formato de fecha inválido. Use YYYY-MM-DD")
+    rows = q.order_by(Asiento.fecha.asc(), Asiento.num_asiento.asc(), DetalleAsiento.id_detalle.asc()).all()
     # Estructurar por asiento
     diario = []
     cur = None

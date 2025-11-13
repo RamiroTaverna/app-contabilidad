@@ -18,9 +18,10 @@
     </div>
 
   {% else %}
-    <div class="card" style="max-width:480px; margin:4rem auto; text-align:center;">
+    <div class="card" style="max-width:720px; margin:4rem auto; text-align:center; padding:2.8rem 2.4rem; border-radius:22px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.2); backdrop-filter:blur(16px); color:#fff;">
       <h2>Bienvenido</h2>
       <p>Accede con tu cuenta de Google para comenzar.</p>
+      <br>
       <a class="btn" href="{{ url_for('auth.login') }}">Iniciar sesión con Google</a>
     </div>
   {% endif %}

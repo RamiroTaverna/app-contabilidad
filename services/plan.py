@@ -14,4 +14,3 @@ def clonar_plan_para_empresa(id_empresa: int):
         FROM plan_cuentas_plantilla
     """)
     db.session.execute(sql, {"id_empresa": id_empresa})
-    db.session.commit()

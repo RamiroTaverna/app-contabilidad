@@ -1,5 +1,7 @@
 # app.py
 from flask import Flask, render_template, session, g, current_app
+from flask_wtf import CSRFProtect
+from flask_wtf.csrf import generate_csrf
 from config import Config
 from models import db, Usuario
 from auth import bp as auth_bp, init_oauth
@@ -27,10 +29,12 @@ except Exception as e:
     print("[INFO] reports blueprint no disponible:", e)
     reports_bp = None
 
+csrf = CSRFProtect()
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    csrf.init_app(app)
 
     # SQLAlchemy
     db.init_app(app)
@@ -55,6 +59,7 @@ def create_app():
         return dict(
             user=getattr(g, "user", None),
             current_app=current_app,
+            csrf_token=generate_csrf,
         )
 
     # Home

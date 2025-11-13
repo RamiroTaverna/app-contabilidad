@@ -21,6 +21,7 @@
   <section class="card" style="margin-bottom:1rem">
     <h3>Nuevo asiento</h3>
     <form method="post" action="{{ url_for('accounting.journal_create') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {% if user.rol.value == 'docente' %}
         <input type="hidden" name="empresa" value="{{ empresa_sel }}">
       {% endif %}

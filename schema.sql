@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   nombre VARCHAR(100) NOT NULL,
   correo VARCHAR(100) NOT NULL UNIQUE,
   contrasena_hash VARCHAR(255),                 -- si luego agregas login tradicional
-  rol ENUM('docente','empleado','dueno') NOT NULL DEFAULT 'empleado',
+  rol ENUM('docente','empleado','dueno','admin') NOT NULL DEFAULT 'empleado',
   google_sub VARCHAR(255) UNIQUE                -- ID estable de Google OAuth
 );
 
@@ -95,6 +95,18 @@ CREATE TABLE IF NOT EXISTS detalle_asiento (
     ON UPDATE CASCADE ON DELETE CASCADE,
   CONSTRAINT fk_da_cuenta FOREIGN KEY (id_cuenta) REFERENCES plan_cuentas(id_cuenta)
     ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS change_log (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  entidad VARCHAR(50) NOT NULL,
+  id_entidad INT NOT NULL,
+  accion VARCHAR(20) NOT NULL,
+  id_usuario INT,
+  ts DATETIME DEFAULT CURRENT_TIMESTAMP,
+  datos TEXT,
+  CONSTRAINT fk_changelog_user FOREIGN KEY (id_usuario) REFERENCES usuarios(id)
+    ON UPDATE CASCADE ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS mayor_cuentas (

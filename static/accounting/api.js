@@ -1,7 +1,12 @@
 // Placeholder API client for accounting endpoints
 // Intentionally minimal; to be wired to /accounting/api/* endpoints later.
+const csrfToken = document.querySelector('meta[name=\"csrf-token\"]')?.content || '';
 export async function fetchJSON(url, opts = {}) {
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', ...opts });
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  if (csrfToken) {
+    headers['X-CSRFToken'] = csrfToken;
+  }
+  const res = await fetch(url, { credentials: 'same-origin', ...opts, headers });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
