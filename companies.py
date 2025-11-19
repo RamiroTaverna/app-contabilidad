@@ -51,9 +51,13 @@ def list_companies():
     cards = []
 
     for e in empresas:
-        empleados = [rel.usuario for rel in e.empleados]  # list[Usuario]
+        empleados_rel = list(e.empleados)
+        empleados = [rel.usuario for rel in empleados_rel]  # list[Usuario]
         total = 1 + len(empleados)                        # 1 dueño + empleados
         cupo_restante = max(0, 5 - len(empleados))
+        es_dueno = bool(user and e.id_gerente == user.id)
+        es_empleado = bool(user and user.rol == Rol.empleado and afiliado and afiliado.id_empresa == e.id_empresa)
+        dueno = db.session.get(Usuario, e.id_gerente) if e.id_gerente else None
 
         puede_unirse = (
             user is not None
@@ -80,7 +84,16 @@ def list_companies():
             cupo=cupo_restante,
             integrantes=integrantes[:6],
             puede_unirse=puede_unirse,
-            puede_ver_mas=(user and (user.rol == Rol.docente or e.id_gerente == user.id))
+            es_dueno=es_dueno,
+            es_empleado=es_empleado,
+            detalle=dict(
+                descripcion=e.descripcion or "",
+                dueno=dict(nombre=dueno.nombre, correo=dueno.correo) if dueno else None,
+                empleados=[
+                    dict(id=rel.id_usuario, nombre=rel.usuario.nombre, correo=rel.usuario.correo)
+                    for rel in empleados_rel
+                ]
+            )
         ))
 
     return render_template("companies/list.html", cards=cards)
@@ -210,7 +223,7 @@ def join_company(id_empresa):
         db.session.add(EmpresaEmpleado(id_empresa=e.id_empresa, id_usuario=g.user.id))
         db.session.commit()
         flash("Te uniste correctamente a la empresa. 🎉", "success")
-        return redirect(url_for("companies.my_company"))
+        return redirect(request.referrer or url_for("companies.list_companies"))
 
     except IntegrityError as ex:
         db.session.rollback()
@@ -219,9 +232,60 @@ def join_company(id_empresa):
             flash("Cada empleado solo puede estar en una empresa.", "error")
         else:
             flash("No se pudo completar la unión por un conflicto de datos.", "error")
-        return redirect(url_for("companies.list_companies"))
+        return redirect(request.referrer or url_for("companies.list_companies"))
 
     except SQLAlchemyError:
         db.session.rollback()
         flash("Error interno al unirte a la empresa.", "error")
+        return redirect(request.referrer or url_for("companies.list_companies"))
+
+@bp.post("/leave")
+@login_required
+def leave_company():
+    empresa_id = request.form.get("empresa_id", type=int)
+    if not empresa_id:
+        flash("Debe especificarse la empresa.", "error")
         return redirect(url_for("companies.list_companies"))
+    empresa = db.session.get(Empresa, empresa_id)
+    if not empresa:
+        flash("La empresa no existe.", "error")
+        return redirect(url_for("companies.list_companies"))
+
+    if empresa.id_gerente == g.user.id:
+        nuevo_dueno_id = request.form.get("nuevo_dueno_id", type=int)
+        if not nuevo_dueno_id:
+            flash("Debes elegir al nuevo dueño antes de abandonar tu empresa.", "error")
+            return redirect(url_for("companies.list_companies"))
+        if nuevo_dueno_id == g.user.id:
+            flash("El nuevo dueño debe ser otra persona.", "error")
+            return redirect(url_for("companies.list_companies"))
+        candidato_rel = EmpresaEmpleado.query.filter_by(id_empresa=empresa_id, id_usuario=nuevo_dueno_id).first()
+        if not candidato_rel or not candidato_rel.usuario:
+            flash("El nuevo dueño debe ser un empleado actual.", "error")
+            return redirect(url_for("companies.list_companies"))
+        nuevo_dueno = candidato_rel.usuario
+        try:
+            empresa.id_gerente = nuevo_dueno_id
+            nuevo_dueno.rol = Rol.dueno
+            db.session.delete(candidato_rel)
+            if g.user.rol == Rol.dueno:
+                g.user.rol = Rol.empleado
+            db.session.commit()
+            flash(f"Transferiste la empresa a {nuevo_dueno.nombre} y abandonaste la compañía.", "success")
+        except SQLAlchemyError:
+            db.session.rollback()
+            flash("No se pudo transferir la empresa.", "error")
+        return redirect(url_for("companies.list_companies"))
+
+    rel = EmpresaEmpleado.query.filter_by(id_empresa=empresa_id, id_usuario=g.user.id).first()
+    if not rel:
+        flash("No perteneces a esta empresa.", "error")
+        return redirect(url_for("companies.list_companies"))
+    try:
+        db.session.delete(rel)
+        db.session.commit()
+        flash("Abandonaste la empresa.", "success")
+    except SQLAlchemyError:
+        db.session.rollback()
+        flash("No se pudo abandonar la empresa.", "error")
+    return redirect(url_for("companies.list_companies"))

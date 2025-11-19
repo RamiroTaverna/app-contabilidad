@@ -5,14 +5,13 @@
 
 <ul class="grid">
   {% for c in cards %}
-  <li class="card">
+  <li class="card company-card">
     <div class="card-head">
       <h3 class="card-title">{{ c.nombre }}</h3>
       <span class="pill">{{ c.total }}/6</span>
     </div>
 
     <div class="slots">
-      {# Renderiza hasta 6 “slots” (dueño + empleados) #}
       {% for m in c.integrantes %}
         <div class="slot filled" title="{{ m.nombre }} ({{ m.rol }})">
           <div class="avatar">{{ m.nombre[:1] | upper }}</div>
@@ -29,16 +28,68 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn">Entrar</button>
         </form>
+      {% elif c.es_empleado or c.es_dueno %}
+        <button class="btn" disabled>Mi empresa</button>
       {% elif c.lleno %}
         <button class="btn" disabled>Lleno</button>
       {% else %}
         <button class="btn" disabled>Cerrado</button>
       {% endif %}
-
-      {% if c.puede_ver_mas %}
-        <a class="btn ghost" href="{{ url_for('companies.show_company', id_empresa=c.id) }}">Ver más</a>
-      {% endif %}
     </div>
+
+    <details class="company-detail">
+      <summary>Ver equipo</summary>
+      <div class="company-detail__body">
+        <p><strong>Dueño:</strong>
+          {% if c.detalle.dueno %}
+            {{ c.detalle.dueno.nombre }} ({{ c.detalle.dueno.correo }})
+          {% else %}
+            Sin asignar
+          {% endif %}
+        </p>
+        {% if c.detalle.descripcion %}
+          <p class="hint">{{ c.detalle.descripcion }}</p>
+        {% endif %}
+        <div>
+          <strong>Integrantes</strong>
+          <ul class="company-members">
+            {% if c.detalle.dueno %}
+              <li>⚑ {{ c.detalle.dueno.nombre }} — dueño</li>
+            {% endif %}
+            {% for m in c.detalle.empleados %}
+              <li>• {{ m.nombre }} ({{ m.correo }})</li>
+            {% else %}
+              <li>Sin empleados registrados.</li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        {% if c.es_empleado %}
+          <form method="post" action="{{ url_for('companies.leave_company') }}" class="inline-form leave-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="empresa_id" value="{{ c.id }}">
+            <button class="btn ghost">Abandonar empresa</button>
+          </form>
+        {% elif c.es_dueno %}
+          {% if c.detalle.empleados %}
+            <form method="post" action="{{ url_for('companies.leave_company') }}" class="inline-form leave-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="empresa_id" value="{{ c.id }}">
+              <label>Transferir dueñidad a</label>
+              <select name="nuevo_dueno_id" required>
+                <option value="">— Elegir —</option>
+                {% for m in c.detalle.empleados %}
+                  <option value="{{ m.id }}">{{ m.nombre }}</option>
+                {% endfor %}
+              </select>
+              <button class="btn">Transferir y abandonar</button>
+            </form>
+          {% else %}
+            <p class="hint">Necesitas al menos un empleado para transferir la empresa antes de salir.</p>
+          {% endif %}
+        {% endif %}
+      </div>
+    </details>
   </li>
   {% endfor %}
 </ul>
@@ -51,4 +102,16 @@
     <button class="btn">Crear</button>
   </form>
 {% endif %}
+<script>
+document.addEventListener('submit', (event) => {
+  const form = event.target;
+  if (!form.classList.contains('leave-form')) return;
+  const msg = form.querySelector('select')
+    ? 'Vas a transferir la empresa y abandonar. ¿Confirmás la acción?'
+    : '¿Seguro que quieres abandonar esta empresa?';
+  if (!window.confirm(msg)) {
+    event.preventDefault();
+  }
+});
+</script>
 {% endblock %}

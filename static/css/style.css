@@ -61,6 +61,14 @@ p{ color:var(--muted); margin:.2rem 0; }
 .nav a.btn:hover,
 .nav a.btn:focus-visible{ color:var(--bordo); }
 
+.company-card{ backdrop-filter:blur(14px); }
+.company-detail{ margin-top:1rem; border:1px solid rgba(255,255,255,0.15); border-radius:12px; padding:.6rem 1rem; background:rgba(255,255,255,0.03); color:var(--fg); }
+.company-detail summary{ cursor:pointer; font-weight:600; }
+.company-detail__body{ margin-top:.75rem; display:flex; flex-direction:column; gap:.7rem; font-size:0.95rem; }
+.company-members{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:.25rem; color:var(--muted); }
+.inline-form{ display:flex; gap:.6rem; flex-wrap:wrap; align-items:flex-end; }
+.inline-form select{ flex:1; min-width:200px; }
+
 .create-form{ display:flex; gap:.6rem; max-width:620px; }
 .create-form input{ flex:1; }
 
