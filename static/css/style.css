@@ -5,7 +5,7 @@
 	--card: rgba(255,255,255,0.08);
 	--border: rgba(255,255,255,0.18);
 	--bordo: #d64a5d;
-	--btn: linear-gradient(135deg,#ff677a,#7B1622);
+	--btn: none;
 	--bg-backdrop: #120203;
 	--wave-mid: #3a050c;
 	--wave-dark: #1f0408;
@@ -32,8 +32,10 @@ button { background:linear-gradient(135deg,#b52d3a,#7B1622); background-size:200
 button:hover,
 button:focus-visible { background-position:right center; color:var(--bordo); box-shadow:none; }
 button[disabled]{ opacity:.4; cursor:not-allowed; background:var(--btn); color:white; box-shadow:none; }
-input, select, textarea { width:100%; padding:.6rem .8rem; border-radius:10px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.06); color:var(--fg); }
+input, select, textarea { width:100%; padding:.6rem .8rem; border-radius:10px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.06); color:var(--fg); color-scheme: dark; }
 input::placeholder, textarea::placeholder { color:rgba(255,255,255,0.55); }
+select option, select optgroup { background:#1a0609; color:#f6f2f2; }
+select option:disabled { color:rgba(255,255,255,0.35); }
 h1,h2,h3{ margin:.2rem 0 1rem; font-weight:700; }
 p{ color:var(--muted); margin:.2rem 0; }
 
