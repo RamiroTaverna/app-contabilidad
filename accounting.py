@@ -146,6 +146,60 @@ def _asiento_to_dict(a: Asiento):
         detalles=[_detalle_to_dict(d) for d in a.detalles],
     )
 
+def _asignar_codigos_rubro_subrubro(rubro: str, subrubro: str) -> tuple:
+    """Asigna automáticamente los códigos de rubro y subrubro según el tipo"""
+    rubro_upper = (rubro or "").strip().upper()
+    subrubro_upper = (subrubro or "").strip().upper()
+    
+    # Mapeo de rubros a códigos
+    codigo_rubro = None
+    codigo_subrubro = None
+    
+    if "ACTIVO" in rubro_upper:
+        codigo_rubro = "1"
+        if "CORRIENTE" in subrubro_upper and "NO" not in subrubro_upper:
+            codigo_subrubro = "1.1"
+        elif "NO CORRIENTE" in subrubro_upper:
+            codigo_subrubro = "1.2"
+        elif "OTROS" in subrubro_upper:
+            codigo_subrubro = "1.3"
+    elif "PASIVO" in rubro_upper:
+        codigo_rubro = "2"
+        if "CORRIENTE" in subrubro_upper and "NO" not in subrubro_upper:
+            codigo_subrubro = "2.1"
+        elif "NO CORRIENTE" in subrubro_upper:
+            codigo_subrubro = "2.2"
+        elif "OTROS" in subrubro_upper:
+            codigo_subrubro = "2.3"
+    elif "PATRIMONIO" in rubro_upper:
+        codigo_rubro = "3"
+        if "CAPITAL" in subrubro_upper:
+            codigo_subrubro = "3.1"
+        elif "RESULTADOS ACUMULADOS" in subrubro_upper:
+            codigo_subrubro = "3.2"
+        elif "RESULTADOS DEL EJERCICIO" in subrubro_upper or "EJERCICIO" in subrubro_upper:
+            codigo_subrubro = "3.3"
+    elif "INGRESOS" in rubro_upper or "VENTAS" in rubro_upper:
+        codigo_rubro = "4"
+        if "INGRESOS" in subrubro_upper or "VENTAS" in subrubro_upper:
+            codigo_subrubro = "4.1"
+        elif "OTROS" in subrubro_upper:
+            codigo_subrubro = "4.2"
+    elif "EGRESOS" in rubro_upper or "GASTOS" in rubro_upper or "COSTOS" in rubro_upper:
+        codigo_rubro = "5"
+        if "EGRESOS" in subrubro_upper or "COSTOS" in subrubro_upper or "COSTO" in subrubro_upper:
+            codigo_subrubro = "5.1"
+        elif "ADMINISTRACIÓN" in subrubro_upper or "ADMINISTRACION" in subrubro_upper:
+            codigo_subrubro = "5.2"
+        elif "COMERCIALIZACIÓN" in subrubro_upper or "COMERCIALIZACION" in subrubro_upper:
+            codigo_subrubro = "5.3"
+        elif "FINANCIEROS" in subrubro_upper:
+            codigo_subrubro = "5.4"
+        elif "OTROS" in subrubro_upper:
+            codigo_subrubro = "5.5"
+    
+    return (codigo_rubro, codigo_subrubro)
+
 def _normal_side_for(c: PlanCuenta) -> str:
     """Heurística de naturaleza del saldo sin cambiar el esquema.
     D: Activo/Gasto; H: Pasivo/Patrimonio/Ingreso
@@ -188,8 +242,8 @@ def api_cuentas_create():
     payload = request.get_json()
     empresa_id = _empresa_actual_from_request()
     _ensure_owner_access(empresa_id)
-    # Datos de entrada: codigo, nombre, tipo (Activo/Pasivo/Patrimonio/Ingreso/Gasto)
-    codigo = (payload.get("codigo") or "").strip().upper()
+    # Datos de entrada: codigo (de la cuenta), nombre, tipo (Activo/Pasivo/Patrimonio/Ingreso/Gasto)
+    codigo_cuenta = (payload.get("codigo") or "").strip().upper()
     nombre = (payload.get("nombre") or "").strip().upper()
     tipo = payload.get("tipo", "").strip()
     subrubro_req = (payload.get("subrubro") or "").strip()
@@ -208,7 +262,7 @@ def api_cuentas_create():
     elif tipo_norm in ("cuentas de resultado",):
         # Diferenciar ingresos vs gastos por subrubro seleccionado
         sr = subrubro_req.lower()
-        if sr.startswith("ingresos"):
+        if sr.startswith("ingresos") or "ventas" in sr:
             rubro = "Ingresos"
         else:
             rubro = "Gastos"
@@ -216,14 +270,20 @@ def api_cuentas_create():
         rubro = "Ingresos"
     elif tipo_norm in ("gasto","gastos"):
         rubro = "Gastos"
-    # Crear registro mínimo
+    
+    # Asignar automáticamente códigos de rubro y subrubro
+    cod_rubro_auto, cod_subrubro_auto = _asignar_codigos_rubro_subrubro(rubro, subrubro_req)
+    
+    # Crear registro: codigo_cuenta va en cod_rubro (es el código de la cuenta, no del rubro)
+    # Los códigos automáticos de rubro/subrubro se guardan en campos separados si es necesario
+    # Por ahora, cod_rubro guarda el código de la cuenta y cod_subrubro el código automático del subrubro
     pc = PlanCuenta(
         id_empresa=empresa_id,
         cuenta=nombre,
-        cod_rubro=codigo or None,
+        cod_rubro=codigo_cuenta or None,  # Código de la cuenta (ej: 1101)
         rubro=rubro,
-        cod_subrubro=(payload.get("cod_subrubro") or None),
-        subrubro=(payload.get("subrubro") or None),
+        cod_subrubro=cod_subrubro_auto,  # Código automático del subrubro (ej: 1.1)
+        subrubro=subrubro_req or None,
     )
     try:
         db.session.add(pc)
@@ -234,7 +294,7 @@ def api_cuentas_create():
             id_entidad=pc.id_cuenta,
             accion="create",
             id_usuario=getattr(g, 'user', None).id if getattr(g, 'user', None) else None,
-            datos=f"{{\"codigo\":\"{codigo}\",\"nombre\":\"{nombre}\",\"tipo\":\"{tipo}\"}}",
+            datos=f"{{\"codigo\":\"{codigo_cuenta}\",\"nombre\":\"{nombre}\",\"tipo\":\"{tipo}\"}}",
         ))
         db.session.commit()
         return jsonify(dict(
@@ -248,6 +308,36 @@ def api_cuentas_create():
     except SQLAlchemyError:
         db.session.rollback()
         abort(500, description="Error al crear la cuenta")
+
+@bp.delete("/api/cuentas/<int:cuenta_id>")
+@login_required
+def api_cuentas_delete(cuenta_id: int):
+    empresa_id = _empresa_actual_from_request()
+    _ensure_owner_access(empresa_id)
+    cuenta = PlanCuenta.query.filter_by(id_cuenta=cuenta_id, id_empresa=empresa_id).first()
+    if not cuenta:
+        abort(404, description="Cuenta no encontrada")
+    
+    # Verificar si la cuenta está siendo usada en algún asiento
+    tiene_detalles = DetalleAsiento.query.filter_by(id_cuenta=cuenta_id).first()
+    if tiene_detalles:
+        abort(400, description="No se puede eliminar una cuenta que está siendo usada en asientos")
+    
+    try:
+        nombre_cuenta = cuenta.cuenta
+        db.session.delete(cuenta)
+        db.session.add(ChangeLog(
+            entidad="cuenta",
+            id_entidad=cuenta_id,
+            accion="delete",
+            id_usuario=g.user.id,
+            datos=f'{{"cuenta":"{nombre_cuenta}"}}',
+        ))
+        db.session.commit()
+        return jsonify({"status": "deleted"})
+    except SQLAlchemyError:
+        db.session.rollback()
+        abort(500, description="Error al eliminar la cuenta")
 
 @bp.get("/api/asientos")
 @login_required
@@ -484,6 +574,101 @@ def api_balance():
             acreedor=float(acreedor),
         ))
     return jsonify(dict(rows=rows, total_debe=float(td), total_haber=float(th), cuadra=abs(td - th) < Decimal("0.005")))
+
+@bp.get("/api/estado-patrimonial")
+@login_required
+def api_estado_patrimonial():
+    """Endpoint para estado de situación patrimonial agrupado por rubro y subrubro"""
+    empresa_id = _empresa_actual_from_request()
+    cuentas = PlanCuenta.query.filter_by(id_empresa=empresa_id).all()
+    
+    # Precalcular saldos por cuenta
+    saldos = {c.id_cuenta: Decimal("0") for c in cuentas}
+    nb_map = {c.id_cuenta: _normal_side_for(c) for c in cuentas}
+    
+    q = (
+        db.session.query(DetalleAsiento, Asiento)
+        .join(Asiento, DetalleAsiento.id_asiento == Asiento.id_asiento)
+        .filter(Asiento.id_empresa == empresa_id)
+    )
+    
+    # Filtros de fecha opcionales
+    desde_s = request.args.get("desde")
+    hasta_s = request.args.get("hasta")
+    from datetime import date as _date
+    try:
+        if desde_s:
+            q = q.filter(Asiento.fecha >= _date.fromisoformat(desde_s))
+        if hasta_s:
+            q = q.filter(Asiento.fecha <= _date.fromisoformat(hasta_s))
+    except Exception:
+        abort(400, description="Formato de fecha inválido. Use YYYY-MM-DD")
+    
+    dets = q.all()
+    for d, a in dets:
+        nb = nb_map.get(d.id_cuenta, "D")
+        if d.tipo == "debe":
+            saldos[d.id_cuenta] += (d.importe if nb == "D" else -d.importe)
+        else:
+            saldos[d.id_cuenta] += (d.importe if nb == "H" else -d.importe)
+    
+    # Agrupar por rubro y subrubro (normalizando a mayúsculas para comparación)
+    grupos = {}  # clave: (rubro_upper, subrubro_upper) -> {cod_rubro, rubro, cod_subrubro, subrubro, importe}
+    
+    for c in cuentas:
+        if not c.rubro and not c.subrubro:
+            continue
+        
+        # Normalizar a mayúsculas para agrupación y comparación
+        rubro_upper = (c.rubro or "").strip().upper()
+        subrubro_upper = (c.subrubro or "").strip().upper()
+        
+        # Obtener valores originales (preservando mayúsculas originales si existen)
+        rubro_original = c.rubro or ""
+        subrubro_original = c.subrubro or ""
+        
+        # Calcular códigos automáticos del rubro y subrubro
+        cod_rubro_auto, cod_subrubro_auto = _asignar_codigos_rubro_subrubro(rubro_original, subrubro_original)
+        
+        # Calcular saldo normalizado (valor absoluto para el importe)
+        nb = nb_map[c.id_cuenta]
+        saldo = saldos[c.id_cuenta]
+        # El saldo ya está normalizado según la naturaleza de la cuenta
+        # Tomamos el valor absoluto para el importe
+        importe = abs(saldo)
+        
+        # Clave de agrupación (usando mayúsculas para comparación)
+        clave = (rubro_upper, subrubro_upper)
+        
+        if clave not in grupos:
+            grupos[clave] = {
+                "cod_rubro": cod_rubro_auto or "",
+                "rubro": rubro_original,
+                "cod_subrubro": cod_subrubro_auto or "",
+                "subrubro": subrubro_original,
+                "importe": Decimal("0")
+            }
+        
+        grupos[clave]["importe"] += importe
+    
+    # Convertir a lista y ordenar
+    rows = []
+    for (rubro_upper, subrubro_upper), datos in grupos.items():
+        rows.append({
+            "cod_rubro": datos["cod_rubro"],
+            "rubro": datos["rubro"],
+            "cod_subrubro": datos["cod_subrubro"],
+            "subrubro": datos["subrubro"],
+            "importe": float(datos["importe"])
+        })
+    
+    # Ordenar por rubro y subrubro (usando mayúsculas para consistencia en la comparación)
+    rows.sort(key=lambda x: (
+        (x["rubro"] or "").upper(),
+        (x["subrubro"] or "").upper()
+    ))
+    
+    return jsonify(dict(rows=rows))
 
 @bp.get("/api/estados")
 @login_required

@@ -59,13 +59,28 @@
     cuentas.forEach(acc=>{
       const tr = document.createElement('tr');
       tr.innerHTML = `<td class="monospace">${acc.cod_rubro || ''}</td><td>${acc.cuenta}</td><td>${acc.rubro || ''}</td><td>${acc.subrubro || ''}</td>
-        <td></td>`;
+        <td><button class="btn ghost danger" onclick="window.eliminarCuenta(${acc.id_cuenta}); return false;">Borrar</button></td>`;
       tb.appendChild(tr);
     });
     const optionsHTML = cuentas.map(c=>`<option value="${c.id_cuenta}">${c.cuenta}</option>`).join('');
     $$('#tablaEntrada tbody tr select.account').forEach(s=>{ const prev = s.value; s.innerHTML = optionsHTML; if(prev) s.value = prev; });
     const mayorSel = $('#selMayor'); if(mayorSel){ mayorSel.innerHTML = '<option value="">— Elegir —</option>' + cuentas.map(c=>`<option value="${c.id_cuenta}">${c.cuenta}</option>`).join(''); }
   }
+  
+  window.eliminarCuenta = async function(id_cuenta){
+    if(!confirm('¿Está seguro de que desea eliminar esta cuenta?')) return;
+    try{
+      const res = await csrfFetch(`/accounting/api/cuentas/${id_cuenta}`, { method:'DELETE' });
+      if(!res.ok){
+        const t = await res.text();
+        throw new Error(t);
+      }
+      await loadCuentas();
+      renderCuentas();
+    }catch(err){
+      alert('Error al eliminar cuenta: ' + err.message);
+    }
+  };
 
   function lineaRow(l){
     const tr = document.createElement('tr');
@@ -211,17 +226,15 @@
         const codigo = $('#accCode').value.trim();
         const nombre = $('#accName').value.trim();
         const tipo = $('#accRubro').value;
-        const cod_subrubro = $('#accSubCode')?.value.trim() || '';
         const subrubro = $('#accSubName')?.value || '';
         if(!nombre) return alert('Completá código y nombre');
         try{
           const payload = { codigo, nombre, tipo };
           if (subrubro) payload.subrubro = subrubro;
-          if (cod_subrubro) payload.cod_subrubro = cod_subrubro;
           if(empresa) payload.empresa = parseInt(empresa,10);
           const res = await csrfFetch('/accounting/api/cuentas', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
           if(!res.ok){ const t = await res.text(); throw new Error(t); }
-          $('#accCode').value=''; $('#accName').value=''; if($('#accSubCode')) $('#accSubCode').value=''; if($('#accSubName')) $('#accSubName').selectedIndex=0;
+          $('#accCode').value=''; $('#accName').value=''; if($('#accSubName')) $('#accSubName').selectedIndex=0;
           await loadCuentas(); renderCuentas();
         }catch(err){ alert('Error al crear cuenta: '+err.message); }
       };
